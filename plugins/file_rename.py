@@ -60,28 +60,20 @@ def extract_season_episode(filename):
 def extract_quality(msg):
     media = msg.video or msg.document
     height = getattr(media, 'height', None)
-    if height:
-        if height >= 2160:
-            return "2160p"
-        elif height >= 1440:
-            return "1440p"
-        elif height >= 1080:
-            return "1080p"
-        elif height >= 720:
-            return "720p"
-        elif height >= 480:
-            return "480p"
-        elif height >= 360:
-            return "360p"
-        return f"{height}p"
+    if height >= 2160:
+        return "2160p"
+    elif height >= 1440:
+        return "1440p"
+    elif height >= 1080:
+        return "1080p"
+    elif height >= 720:
+        return "720p"
+    elif height >= 480:
+        return "480p"
+    elif height >= 360:
+        return "360p"
+    return f"{height}"
     
-    filename = msg.video.file_name if msg.video else msg.document.file_name if msg.document else ""
-    for pattern, extractor in QUALITY_PATTERNS:
-        match = pattern.search(filename or "")
-        if match:
-            return extractor(match)
-    
-    return "Unknown"
 
 async def cleanup_files(*paths):
     for path in paths:
