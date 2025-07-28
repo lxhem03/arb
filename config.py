@@ -7,11 +7,11 @@ class Config(object):
     # pyro client config
     API_ID    = os.environ.get("API_ID", "27394279")
     API_HASH  = os.environ.get("API_HASH", "90a9aa4c31afa3750da5fd686c410851")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "7721902522:AAHamnJnM9f1AjWPvhl4NpzLeoM_d5TW6Dw") 
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "7721902522:AAEY8gglDXV6goNlubNjEKTqLOzdV2DMaHo") 
 
     # database config
     DB_NAME = os.environ.get("DB_NAME","Yato")     
-    DB_URL  = os.environ.get("DB_URL","mongodb+srv://telegramguy21:tnkIwvbNkJ5U3fZ7@botsuse.bpgag.mongodb.net/?retryWrites=true&w=majority&appName=Botsuse")
+    DB_URL  = os.environ.get("DB_URL","mongodb+srv://python21java:8ZFGYMKJCqAPwsiO@filestore.f876hjv.mongodb.net/?retryWrites=true&w=majority&appName=Filestore")
     PORT = os.environ.get("PORT", "8080")
  
     # other configs
