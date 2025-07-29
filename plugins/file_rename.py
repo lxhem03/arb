@@ -16,6 +16,8 @@ from plugins.antinsfw import check_anti_nsfw
 from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
+from hachoir.parser import createParser
+from hachoir.metadata import extractMetadata
 
 # --- logging & global setup ---
 logging.basicConfig(
@@ -57,9 +59,38 @@ def extract_season_episode(filename):
     logger.warning(f"No season/episode pattern matched for {filename}")
     return None, None
 
-def extract_quality(msg):
+
+def extract_quality(msg, file_path=None):
+    """Get quality using height, fallback to file metadata or filename regex"""
+    # 1. First try from Telegram video/document height
     media = msg.video or msg.document
     height = getattr(media, 'height', None)
+
+    if height:
+        return quality_from_height(height)
+
+    # 2. Fallback to media file itself (if path is given)
+    if file_path and os.path.exists(file_path):
+        try:
+            parser = createParser(file_path)
+            if parser:
+                metadata = extractMetadata(parser)
+                if metadata and metadata.has("height"):
+                    return quality_from_height(metadata.get("height"))
+        except Exception as e:
+            logger.warning(f"Failed to extract resolution from file: {e}")
+
+    # 3. Final fallback: check from filename regex
+    filename = media.file_name if media else ""
+    for pattern, extractor in QUALITY_PATTERNS:
+        match = pattern.search(filename or "")
+        if match:
+            return extractor(match)
+
+    return "Failed"
+
+def quality_from_height(height):
+    """Map height to quality label"""
     if height >= 2160:
         return "2160p"
     elif height >= 1440:
@@ -72,7 +103,7 @@ def extract_quality(msg):
         return "480p"
     elif height >= 360:
         return "360p"
-    return f"{height}"
+    return f"{height}p"
     
 
 async def cleanup_files(*paths):
