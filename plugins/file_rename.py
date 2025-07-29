@@ -60,50 +60,30 @@ def extract_season_episode(filename):
     return None, None
 
 
-def extract_quality(msg, file_path=None):
-    """Get quality using height, fallback to file metadata or filename regex"""
-    # 1. First try from Telegram video/document height
-    media = msg.video or msg.document
-    height = getattr(media, 'height', None)
+async def cmd_exec(cmd: list):
+    process = await asyncio.create_subprocess_exec(
+        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate()
+    return stdout.decode(), stderr.decode()
 
-    if height:
-        return quality_from_height(height)
-
-    # 2. Fallback to media file itself (if path is given)
-    if file_path and os.path.exists(file_path):
-        try:
-            parser = createParser(file_path)
-            if parser:
-                metadata = extractMetadata(parser)
-                if metadata and metadata.has("height"):
-                    return quality_from_height(metadata.get("height"))
-        except Exception as e:
-            logger.warning(f"Failed to extract resolution from file: {e}")
-
-    # 3. Final fallback: check from filename regex
-    filename = media.file_name if media else ""
-    for pattern, extractor in QUALITY_PATTERNS:
-        match = pattern.search(filename or "")
-        if match:
-            return extractor(match)
-
-    return "Failed"
-
-def quality_from_height(height):
-    """Map height to quality label"""
-    if height >= 2160:
-        return "2160p"
-    elif height >= 1440:
-        return "1440p"
-    elif height >= 1080:
-        return "1080p"
-    elif height >= 720:
-        return "720p"
-    elif height >= 480:
-        return "480p"
-    elif height >= 360:
-        return "360p"
-    return f"{height}p"
+async def get_media_quality(path):
+    try:
+        result = await cmd_exec([
+            "ffprobe", "-hide_banner", "-loglevel", "error", "-print_format", "json",
+            "-show_format", "-show_streams", path
+        ])
+        if res := result[1]:
+            logger.warning(f'Media Info FF: {res}')
+        ffresult = eval(result[0])
+        streams = ffresult.get('streams', [])
+        for stream in streams:
+            if stream.get('codec_type') == 'video':
+                height = int(stream.get('height', 0))
+                return f"{480 if height <= 480 else 540 if height <= 540 else 720 if height <= 720 else 1080 if height <= 1080 else 2160 if height <= 2160 else 4320 if height <= 4320 else 8640}p"
+    except Exception as e:
+        logger.error(f'Media Quality Error: {e}')
+    return None
     
 
 async def cleanup_files(*paths):
@@ -199,7 +179,7 @@ async def auto_rename_files(client, message):
 
     try:
         season, episode = extract_season_episode(file_name)
-        quality = extract_quality(message)
+        quality = await get_media_quality(file_path) or "Still failed"
 
         replacements = {
             '{season}': season or 'XX',
