@@ -178,6 +178,10 @@ async def auto_rename_files(client, message):
     renaming_operations[file_id] = datetime.now()
 
     try:
+        download_path = None
+        metadata_path = None
+        file_path = None
+        thumb_path = None        
         season, episode = extract_season_episode(file_name)
         quality = await get_media_quality(file_path) or "Still failed"
 
