@@ -33,25 +33,29 @@ user_queues = {}
 SEASON_EPISODE_PATTERNS = [
     # Standard S01E02 or S1E2
     (re.compile(r'\b[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})\b'), ('season', 'episode')),
-
     # Full words: Season 1 Episode 2
     (re.compile(r'\bSeason[\s_]*(\d{1,2})[\s_-]*Episode[\s_]*(\d{1,3})\b', re.IGNORECASE), ('season', 'episode')),
-
     # Episode-only formats
     (re.compile(r'\b[Ee][Pp]?[ ._-]?(\d{1,3})\b'), (None, 'episode')),
     (re.compile(r'\bEpisode[\s_-]*(\d{1,3})\b', re.IGNORECASE), (None, 'episode')),
     (re.compile(r'\bEp[\s_-]*(\d{1,3})\b', re.IGNORECASE), (None, 'episode')),
-
     # Season-only formats
     (re.compile(r'\b[Ss]eason[\s_-]*(\d{1,2})\b'), ('season', None)),
     (re.compile(r'\b[Ss](\d{1,2})\b'), ('season', None)),
     (re.compile(r'\bSeason[\s_-]*(\d{1,2})\b', re.IGNORECASE), ('season', None)),
-
     # Alt forms like "1x02" for Season 1 Episode 2
     (re.compile(r'\b(\d{1,2})x(\d{1,2})\b'), ('season', 'episode')),
-
     # 1st, 2nd, 3rd episode (rare)
     (re.compile(r'\b(\d{1,3})(?:st|nd|rd|th)[\s_-]*Episode\b', re.IGNORECASE), (None, 'episode')),
+    # Patterns with spaces/dashes (S01 E02, S01-EP02)
+    (re.compile(r'S(\d+)[\s-]*(?:E|EP)(\d+)'), ('season', 'episode')),
+    # Patterns with brackets/parentheses ([S01][E02])
+    (re.compile(r'\[S(\d+)\]\[E(\d+)\]'), ('season', 'episode')),
+    # Fallback patterns (S01 13, Episode 13)
+    (re.compile(r'S(\d+)[^\d]*(\d+)'), ('season', 'episode')),
+    (re.compile(r'(?:E|EP|Episode)\s*(\d+)', re.IGNORECASE), (None, 'episode')),
+    # Final fallback (standalone number)
+    (re.compile(r'\b(\d+)\b'), (None, 'episode'))    
 ]
 
 QUALITY_PATTERNS = [
