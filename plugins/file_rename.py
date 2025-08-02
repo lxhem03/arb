@@ -25,17 +25,54 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 renaming_operations = {}
 
+# Per-user queue and worker management
+defaultdict = getattr(__import__('collections'), 'defaultdict')
+user_queues = {}
+
 # regex patterns
 SEASON_EPISODE_PATTERNS = [
-    (re.compile(r'S(\d+)(?:E|EP)(\d+)'), ('season', 'episode')),
-    (re.compile(r'Season\s*(\d+)\sEpisode\s(\d+)', re.IGNORECASE), ('season', 'episode')),
-    (re.compile(r'\bE(\d{1,3})\b'), (None, 'episode'))
+    # Standard S01E02 or S1E2
+    (re.compile(r'\b[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})\b'), ('season', 'episode')),
+
+    # Full words: Season 1 Episode 2
+    (re.compile(r'\bSeason[\s_]*(\d{1,2})[\s_-]*Episode[\s_]*(\d{1,3})\b', re.IGNORECASE), ('season', 'episode')),
+
+    # Episode-only formats
+    (re.compile(r'\b[Ee][Pp]?[ ._-]?(\d{1,3})\b'), (None, 'episode')),
+    (re.compile(r'\bEpisode[\s_-]*(\d{1,3})\b', re.IGNORECASE), (None, 'episode')),
+    (re.compile(r'\bEp[\s_-]*(\d{1,3})\b', re.IGNORECASE), (None, 'episode')),
+
+    # Season-only formats
+    (re.compile(r'\b[Ss]eason[\s_-]*(\d{1,2})\b'), ('season', None)),
+    (re.compile(r'\b[Ss](\d{1,2})\b'), ('season', None)),
+    (re.compile(r'\bSeason[\s_-]*(\d{1,2})\b', re.IGNORECASE), ('season', None)),
+
+    # Alt forms like "1x02" for Season 1 Episode 2
+    (re.compile(r'\b(\d{1,2})x(\d{1,2})\b'), ('season', 'episode')),
+
+    # 1st, 2nd, 3rd episode (rare)
+    (re.compile(r'\b(\d{1,3})(?:st|nd|rd|th)[\s_-]*Episode\b', re.IGNORECASE), (None, 'episode')),
 ]
 
 QUALITY_PATTERNS = [
-    (re.compile(r'\b(\d{3,4}[pi])\b', re.IGNORECASE), lambda m: m.group(1)),
-    (re.compile(r'\b(4k|2160p)\b', re.IGNORECASE), lambda m: "4k"),
-    (re.compile(r'\b(2k|1440p)\b', re.IGNORECASE), lambda m: "2k")
+    # Explicit resolutions
+    (re.compile(r'\b(2160p|4k)\b', re.IGNORECASE), lambda m: '2160p'),
+    (re.compile(r'\b(1440p|2k)\b', re.IGNORECASE), lambda m: '1440p'),
+    (re.compile(r'\b1080p\b', re.IGNORECASE), lambda m: '1080p'),
+    (re.compile(r'\b720p\b', re.IGNORECASE), lambda m: '720p'),
+    (re.compile(r'\b480p\b', re.IGNORECASE), lambda m: '480p'),
+    (re.compile(r'\b360p\b', re.IGNORECASE), lambda m: '360p'),
+    (re.compile(r'\b240p\b', re.IGNORECASE), lambda m: '240p'),
+    (re.compile(r'\b144p\b', re.IGNORECASE), lambda m: '144p'),
+
+    # Common terms mapped to resolution
+    (re.compile(r'\bUHD\b', re.IGNORECASE), lambda m: '2160p'),
+    (re.compile(r'\bFHD\b', re.IGNORECASE), lambda m: '1080p'),
+    (re.compile(r'\bHD\b', re.IGNORECASE), lambda m: '720p'),
+    (re.compile(r'\bSD\b', re.IGNORECASE), lambda m: '480p'),
+
+    # Fallback: any number ending with "p"
+    (re.compile(r'\b(\d{3,4})[pP]\b'), lambda m: f"{m.group(1)}p")
 ]
 
 # helper functions
@@ -139,8 +176,19 @@ async def add_metadata(input_path, output_path, user_id):
     if process.returncode != 0:
         raise RuntimeError(f"FFmpeg error: {stderr.decode()}")
 
-@Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
-async def auto_rename_files(client, message):
+# The worker function for each user's queue
+async def user_queue_worker(user_id):
+    queue = user_queues[user_id]['queue']
+    while True:
+        message, client = await queue.get()
+        try:
+            await process_auto_rename_files(client, message)
+        except Exception as e:
+            logger.error(f"Error processing file for user {user_id}: {e}")
+        queue.task_done()
+
+# The main logic for processing each file (formerly auto_rename_files handler)
+async def process_auto_rename_files(client, message):
     user_id = message.from_user.id
     format_template = await codeflixbots.get_format_template(user_id)
     if not format_template:
@@ -250,3 +298,20 @@ async def auto_rename_files(client, message):
     finally:
         await cleanup_files(download_path, metadata_path, thumb_path)
         renaming_operations.pop(file_id, None)
+
+# The new handler: puts messages in the user's queue and responds with queue info
+@Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
+async def queue_auto_rename_files(client, message):
+    user_id = message.from_user.id
+    if user_id not in user_queues:
+        user_queues[user_id] = {
+            'queue': asyncio.Queue(),
+            'worker': asyncio.create_task(user_queue_worker(user_id))
+        }
+    queue = user_queues[user_id]['queue']
+    await queue.put((message, client))
+    position = queue.qsize()
+    if position == 1:
+        await message.reply_text("No files in queue, starting download!")
+    else:
+        await message.reply_text(f"File added to queue. Position no. {position}")
