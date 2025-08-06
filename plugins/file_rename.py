@@ -55,7 +55,7 @@ SEASON_EPISODE_PATTERNS = [
     (re.compile(r'S(\d+)[^\d]*(\d+)'), ('season', 'episode')),
     (re.compile(r'(?:E|EP|Episode)\s*(\d+)', re.IGNORECASE), (None, 'episode')),
     # Final fallback (standalone number)
-    (re.compile(r'\b(?<!\d)(\d{1,4})(?![pP]|\d)'), 'episode')    
+    (re.compile(r'\b(?<!\d)(\d{1,4})(?![pP]|\d)'), (None, 'episode'))    
 ]
 
 QUALITY_PATTERNS = [
