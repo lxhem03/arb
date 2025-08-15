@@ -169,7 +169,7 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
         await query.message.edit_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
         return
 
-# Handle set/change metadata
+    # Handle set/change metadata
     if data.startswith("set_"):
         meta_type = data.split("_")[1]
         user_states[user_id] = {"state": f"set_{meta_type}", "message_id": query.message.id}
@@ -195,10 +195,11 @@ Timeout: 30 seconds...
         ]
         await query.message.edit_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
         return
+
     # Handle delete metadata
     if data.startswith("delete_"):
         meta_type = data.split("_")[1]
-        # Assuming database functions to delete specific metadata
+        # Map metadata types to delete functions
         delete_functions = {
             "title": db.delete_title,
             "author": db.delete_author,
@@ -298,4 +299,3 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
                 [InlineKeyboardButton("Back", callback_data="metainfo")]
             ])
         )
-
