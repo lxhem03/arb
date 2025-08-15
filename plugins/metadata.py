@@ -188,11 +188,11 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
         text = f"""
 **Set your metadata for {meta_type.capitalize()}!**
 
-Please reply to this message with the new value.
+__Please reply to this message with the new value.__
 For example: [TG: @Animes_Guy]
 
-Your current value: `{meta_value if meta_value else 'Not set'}`
-Timeout: 30 seconds...
+__**Your current value**__: `{meta_value if meta_value else 'Not set'}`
+**Timeout: 30 seconds...**
         """
         buttons = [
             [InlineKeyboardButton("Cancel", callback_data=f"cancel_{meta_type}")]
@@ -288,6 +288,9 @@ async def timeout_handler(client, user_id, meta_type, meta_value):
     await asyncio.sleep(30)
     if user_id in user_states and user_states[user_id]["state"] == f"set_{meta_type}":
         try:
+            # Delete the prompt message
+            prompt_message_id = user_states[user_id]["prompt_message_id"]
+            await client.delete_messages(chat_id=user_id, message_ids=prompt_message_id)            
             # Clear state
             menu_message_id = user_states[user_id]["menu_message_id"]
             del user_states[user_id]
