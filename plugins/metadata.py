@@ -3,10 +3,14 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from config import Txt
 import asyncio
-from contextlib import asynccontextmanager
+import logging
 
 # State dictionary to track user input state
 user_states = {}
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @Client.on_message(filters.command("metadata"))
 async def metadata(client, message):
@@ -194,72 +198,23 @@ Timeout: 30 seconds...
             [InlineKeyboardButton("Cancel", callback_data=f"meta_{meta_type}")]
         ]
         await query.message.edit_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
-        return
 
-    # Handle delete metadata
-    if data.startswith("delete_"):
-        meta_type = data.split("_")[1]
-        # Map metadata types to delete functions
-        delete_functions = {
-            "title": db.delete_title,
-            "author": db.delete_author,
-            "artist": db.delete_artist,
-            "audio": db.delete_audio,
-            "subtitle": db.delete_subtitle,
-            "video": db.delete_video
-        }
-        if meta_type in delete_functions:
-            await delete_functions[meta_type](user_id)
-            await query.message.edit_text(f"**✅ {meta_type.capitalize()} metadata deleted**", reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Back", callback_data="metainfo")]
-            ]))
-        return
-
-    # Handle back to metadata type selection
-    if data == "back_types":
-        buttons = [
-            [
-                InlineKeyboardButton("Title", callback_data="meta_title"),
-                InlineKeyboardButton("Author", callback_data="meta_author")
-            ],
-            [
-                InlineKeyboardButton("Artist", callback_data="meta_artist"),
-                InlineKeyboardButton("Audio", callback_data="meta_audio")
-            ],
-            [
-                InlineKeyboardButton("Subtitle", callback_data="meta_subtitle"),
-                InlineKeyboardButton("Video", callback_data="meta_video")
-            ],
-            [
-                InlineKeyboardButton("Back", callback_data="back_main")
-            ]
-        ]
-        await query.message.edit_text(
-            text="**Select a metadata type to set or change:**",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
-        return
-
-
-@Client.on_message(filters.private & filters.text)
-async def handle_metadata_input(client, message):
-    user_id = message.from_user.id
-    if user_id not in user_states or not user_states[user_id]["state"].startswith("set_"):
-        return
-
-    meta_type = user_states[user_id]["state"].split("_")[1]
-    value = message.text
-    set_functions = {
-        "title": db.set_title,
-        "author": db.set_author,
-        "artist": db.set_artist,
-        "audio": db.set_audio,
-        "subtitle": db.set_subtitle,
-        "video": db.set_video
-    }
-
-    try:
-        async with asyncio.timeout(30):
+        # Wait for user input with timeout
+        try:
+            message = await client.wait_for_message(
+                chat_id=user_id,
+                filters=filters.text & filters.private,
+                timeout=30
+            )
+            value = message.text
+            set_functions = {
+                "title": db.set_title,
+                "author": db.set_author,
+                "artist": db.set_artist,
+                "audio": db.set_audio,
+                "subtitle": db.set_subtitle,
+                "video": db.set_video
+            }
             await set_functions[meta_type](user_id, value)
             del user_states[user_id]  # Clear state
             await message.reply_text(f"**✅ {meta_type.capitalize()} saved**")
@@ -287,15 +242,79 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
                 text=text,
                 reply_markup=InlineKeyboardMarkup(buttons)
             )
-    except asyncio.TimeoutError:
-        del user_states[user_id]  # Clear state
-        await message.reply_text("**⏰ Timeout! Metadata setting cancelled.**")
-        await client.edit_message_text(
-            chat_id=user_id,
-            message_id=user_states[user_id]["message_id"],
-            text=f"**Set your metadata for {meta_type.capitalize()}!**\n\nYour current value: `{meta_value if meta_value else 'Not set'}`",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Set/Change", callback_data=f"set_{meta_type}")],
-                [InlineKeyboardButton("Back", callback_data="metainfo")]
-            ])
+        except asyncio.TimeoutError:
+            del user_states[user_id]  # Clear state
+            await query.message.reply_text("**⏰ Timeout! Metadata setting cancelled.**")
+            await client.edit_message_text(
+                chat_id=user_id,
+                message_id=user_states[user_id]["message_id"],
+                text=f"**Set your metadata for {meta_type.capitalize()}!**\n\nYour current value: `{meta_value if meta_value else 'Not set'}`",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Set/Change", callback_data=f"set_{meta_type}")],
+                    [InlineKeyboardButton("Back", callback_data="metainfo")]
+                ])
+            )
+        except Exception as e:
+            logger.error(f"Error setting metadata for user {user_id}: {e}")
+            del user_states[user_id]  # Clear state
+            await query.message.reply_text("**❌ Error setting metadata. Try again.**")
+            await client.edit_message_text(
+                chat_id=user_id,
+                message_id=user_states[user_id]["message_id"],
+                text=f"**Set your metadata for {meta_type.capitalize()}!**\n\nYour current value: `{meta_value if meta_value else 'Not set'}`",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Set/Change", callback_data=f"set_{meta_type}")],
+                    [InlineKeyboardButton("Back", callback_data="metainfo")]
+                ])
+            )
+        return
+
+    # Handle delete metadata
+    if data.startswith("delete_"):
+        meta_type = data.split("_")[1]
+        # Map metadata types to delete functions
+        delete_functions = {
+            "title": db.delete_title,
+            "author": db.delete_author,
+            "artist": db.delete_artist,
+            "audio": db.delete_audio,
+            "subtitle": db.delete_subtitle,
+            "video": db.delete_video
+        }
+        if meta_type in delete_functions:
+            try:
+                await delete_functions[meta_type](user_id)
+                await query.message.edit_text(f"**✅ {meta_type.capitalize()} metadata deleted**", reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Back", callback_data="metainfo")]
+                ]))
+            except Exception as e:
+                logger.error(f"Error deleting {meta_type} for user {user_id}: {e}")
+                await query.message.edit_text("**❌ Error deleting metadata. Try again.**", reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Back", callback_data="metainfo")]
+                ]))
+        return
+
+    # Handle back to metadata type selection
+    if data == "back_types":
+        buttons = [
+            [
+                InlineKeyboardButton("Title", callback_data="meta_title"),
+                InlineKeyboardButton("Author", callback_data="meta_author")
+            ],
+            [
+                InlineKeyboardButton("Artist", callback_data="meta_artist"),
+                InlineKeyboardButton("Audio", callback_data="meta_audio")
+            ],
+            [
+                InlineKeyboardButton("Subtitle", callback_data="meta_subtitle"),
+                InlineKeyboardButton("Video", callback_data="meta_video")
+            ],
+            [
+                InlineKeyboardButton("Back", callback_data="back_main")
+            ]
+        ]
+        await query.message.edit_text(
+            text="**Select a metadata type to set or change:**",
+            reply_markup=InlineKeyboardMarkup(buttons)
         )
+        return
