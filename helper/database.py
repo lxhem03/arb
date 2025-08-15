@@ -182,5 +182,22 @@ class Database:
     async def set_video(self, user_id, video):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'video': video}})
 
+    async def delete_title(user_id):
+        await db.update_one({"user_id": user_id}, {"$unset": {"title": ""}})
+
+    async def delete_author(user_id):
+        await db.update_one({"user_id": user_id}, {"$unset": {"author": ""}})
+
+    async def delete_artist(user_id):
+        await db.update_one({"user_id": user_id}, {"$unset": {"artist": ""}})
+
+    async def delete_audio(user_id):
+        await db.update_one({"user_id": user_id}, {"$unset": {"audio": ""}})
+
+    async def delete_subtitle(user_id):
+        await db.update_one({"user_id": user_id}, {"$unset": {"subtitle": ""}})
+
+    async def delete_video(user_id):
+        await db.update_one({"user_id": user_id}, {"$unset": {"video": ""}})
 
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
