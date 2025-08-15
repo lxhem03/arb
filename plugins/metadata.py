@@ -169,23 +169,25 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
         await query.message.edit_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
         return
 
-    # Handle set/change metadata
+# Handle set/change metadata
     if data.startswith("set_"):
         meta_type = data.split("_")[1]
         user_states[user_id] = {"state": f"set_{meta_type}", "message_id": query.message.id}
+        # Fetch the current metadata value
+        meta_value = {
+            "title": await db.get_title(user_id),
+            "author": await db.get_author(user_id),
+            "artist": await db.get_artist(user_id),
+            "audio": await db.get_audio(user_id),
+            "subtitle": await db.get_subtitle(user_id),
+            "video": await db.get_video(user_id)
+        }[meta_type]
         text = f"""
 **Set your metadata for {meta_type.capitalize()}!**
 
 For example: [TG: @Animes_Guy]
 
-Your current value: `{{
-    "title": await db.get_title(user_id),
-    "author": await db.get_author(user_id),
-    "artist": await db.get_artist(user_id),
-    "audio": await db.get_audio(user_id),
-    "subtitle": await db.get_subtitle(user_id),
-    "video": await db.get_video(user_id)
-}[meta_type] or 'Not set'}`
+Your current value: `{meta_value if meta_value else 'Not set'}`
 Timeout: 30 seconds...
         """
         buttons = [
@@ -193,7 +195,6 @@ Timeout: 30 seconds...
         ]
         await query.message.edit_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
         return
-
     # Handle delete metadata
     if data.startswith("delete_"):
         meta_type = data.split("_")[1]
