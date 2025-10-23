@@ -31,32 +31,39 @@ user_queues = {}
 
 # regex patterns
 SEASON_EPISODE_PATTERNS = [
-    # Standard S01E02 or S1E2
+    # 🎯 Most specific: S01E02 or S1E2
     (re.compile(r'\b[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})\b'), ('season', 'episode')),
-    # Full words: Season 1 Episode 2
+
+    # 🎯 1x02 format
+    (re.compile(r'\b(\d{1,2})x(\d{1,3})\b'), ('season', 'episode')),
+
+    # 🎯 S1 - 02, S1_02, S1.-.02, etc.
+    (re.compile(r'\b[Ss](\d{1,2})\s*[-._]\s*(\d{1,3})\b'), ('season', 'episode')),
+    (re.compile(r'[_\W]*[Ss](\d{1,2})\s*[-._]+\s*(\d{1,3})[_\W]*'), ('season', 'episode')),
+
+    # 🎯 Full words: Season 1 Episode 2
     (re.compile(r'\bSeason[\s_]*(\d{1,2})[\s_-]*Episode[\s_]*(\d{1,3})\b', re.IGNORECASE), ('season', 'episode')),
-    # Episode-only formats
+
+    # 🎯 Patterns with bracket forms [S01][E02]
+    (re.compile(r'\[S(\d+)\]\[E(\d+)\]'), ('season', 'episode')),
+
+    # 🎯 "S01 E02" or "S01-EP02"
+    (re.compile(r'S(\d+)[\s-]*(?:E|EP)(\d+)'), ('season', 'episode')),
+
+    # 🎯 "S3 - 02" or "Season 3 - 02"
+    (re.compile(r'\b[Ss](\d{1,2})\s*[-._]\s*(\d{1,3})\b'), ('season', 'episode')),
+
+    # ✅ Episode-only formats (when no season info)
     (re.compile(r'\b[Ee][Pp]?[ ._-]?(\d{1,3})\b'), (None, 'episode')),
     (re.compile(r'\bEpisode[\s_-]*(\d{1,3})\b', re.IGNORECASE), (None, 'episode')),
     (re.compile(r'\bEp[\s_-]*(\d{1,3})\b', re.IGNORECASE), (None, 'episode')),
-    # Season-only formats
+
+    # ✅ Season-only formats (rare)
     (re.compile(r'\b[Ss]eason[\s_-]*(\d{1,2})\b'), ('season', None)),
     (re.compile(r'\b[Ss](\d{1,2})\b'), ('season', None)),
-    (re.compile(r'\bSeason[\s_-]*(\d{1,2})\b', re.IGNORECASE), ('season', None)),
-    # Alt forms like "1x02" for Season 1 Episode 2
-    (re.compile(r'\b(\d{1,2})x(\d{1,2})\b'), ('season', 'episode')),
-    # 1st, 2nd, 3rd season (rare)
-    (re.compile(r'\b(\d{1,3})(?:st|nd|rd|th)[\s_-]*Episode\b', re.IGNORECASE), ('season', None)),
-    # Patterns with spaces/dashes (S01 E02, S01-EP02)
-    (re.compile(r'S(\d+)[\s-]*(?:E|EP)(\d+)'), ('season', 'episode')),
-    # Patterns with brackets/parentheses ([S01][E02])
-    (re.compile(r'\[S(\d+)\]\[E(\d+)\]'), ('season', 'episode')),
-    # Fallback patterns (S01 13, Episode 13)
-    (re.compile(r'[_\W]*[Ss](\d{1,2})\s*[ -._]\s*(\d{1,3})[_\W]*'), ('season', 'episode')),
-    (re.compile(r'\b[Ss](\d{1,2})\s*[ -._]\s*(\d{1,3})\b'), ('season', 'episode')),
-    (re.compile(r'[Ss](\d{1,2})\s*[ -._]+\s*(\d{1,3})'), ('season', 'episode')),
-    # Final fallback (standalone number)
-    (re.compile(r'[ ._-]?(\d+)[ ._-]?'), (None, 'episode'))   
+
+    # 🔚 Standalone episode number fallback (e.g. "01", "_02_", "- 03 -", ".04.")
+    (re.compile(r'(?<!\d)[._\s-]*(\d{1,3})[._\s-]*(?!\d)'), (None, 'episode')),
 ]
 
 QUALITY_PATTERNS = [
