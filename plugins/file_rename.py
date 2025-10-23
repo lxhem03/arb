@@ -45,15 +45,16 @@ SEASON_EPISODE_PATTERNS = [
     (re.compile(r'\bSeason[\s_-]*(\d{1,2})\b', re.IGNORECASE), ('season', None)),
     # Alt forms like "1x02" for Season 1 Episode 2
     (re.compile(r'\b(\d{1,2})x(\d{1,2})\b'), ('season', 'episode')),
-    # 1st, 2nd, 3rd episode (rare)
+    # 1st, 2nd, 3rd season (rare)
     (re.compile(r'\b(\d{1,3})(?:st|nd|rd|th)[\s_-]*Episode\b', re.IGNORECASE), ('season', None)),
     # Patterns with spaces/dashes (S01 E02, S01-EP02)
     (re.compile(r'S(\d+)[\s-]*(?:E|EP)(\d+)'), ('season', 'episode')),
     # Patterns with brackets/parentheses ([S01][E02])
     (re.compile(r'\[S(\d+)\]\[E(\d+)\]'), ('season', 'episode')),
     # Fallback patterns (S01 13, Episode 13)
-    (re.compile(r'S(\d+)[^\d]*(\d+)'), ('season', 'episode')),
-    (re.compile(r'(?:E|EP|Episode)\s*(\d+)', re.IGNORECASE), (None, 'episode')),
+    (re.compile(r'[_\W]*[Ss](\d{1,2})\s*[ -._]\s*(\d{1,3})[_\W]*'), ('season', 'episode')),
+    (re.compile(r'\b[Ss](\d{1,2})\s*[ -._]\s*(\d{1,3})\b'), ('season', 'episode')),
+    (re.compile(r'[Ss](\d{1,2})\s*[ -._]+\s*(\d{1,3})'), ('season', 'episode')),
     # Final fallback (standalone number)
     (re.compile(r'[ ._-]?(\d+)[ ._-]?'), (None, 'episode'))   
 ]
