@@ -33,9 +33,8 @@ user_queues = {}
 SEASON_EPISODE_PATTERNS = [
     # 🎯 Most specific: S01E02 or S1E2
     (re.compile(r'\b[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})\b'), ('season', 'episode')),
-    # 🎯 Underscore/dash/dot-separated variant (S1_E02, S1-E02)
-    (re.compile(r'\b[Ss](\d{1,2})[_\-\.]+[Ee](\d{1,3})\b'), ('season', 'episode')),
-
+    # Ignore numbers like 480, 720, 1080, 2160
+    (re.compile(r'(?<!\d)(?!(?:480|720|1080|2160)p)[._\s-]*(\d{1,3})[._\s-]*(?!\d)', re.IGNORECASE), (None, 'episode')),
     # 🎯 1x02 format
     (re.compile(r'\b(\d{1,2})x(\d{1,3})\b'), ('season', 'episode')),
 
@@ -50,7 +49,7 @@ SEASON_EPISODE_PATTERNS = [
     (re.compile(r'\[S(\d+)\]\[E(\d+)\]'), ('season', 'episode')),
 
     # 🎯 "S01 E02" or "S01-EP02"
-    (re.compile(r'S(\d+)[\s-]*(?:E|EP)(\d+)'), ('season', 'episode')),
+    (re.compile(r'S(\d+)[\s-._]*(?:E|EP)(\d+)'), ('season', 'episode')),
 
     # 🎯 "S3 - 02" or "Season 3 - 02"
     (re.compile(r'\b[Ss](\d{1,2})\s*[-._]\s*(\d{1,3})\b'), ('season', 'episode')),
