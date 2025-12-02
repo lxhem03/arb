@@ -48,8 +48,6 @@ SEASON_EPISODE_PATTERNS = [
     # 🎯 Patterns with bracket forms [S01][E02]
     (re.compile(r'\[S(\d+)\]\[E(\d+)\]'), ('season', 'episode')),
 
-    # 🎯 "S01 E02" or "S01-EP02"
-    (re.compile(r'S(\d+)[\s-._]*(?:E|EP)(\d+)'), ('season', 'episode')),
 
     # 🎯 "S3 - 02" or "Season 3 - 02"
     (re.compile(r'\b[Ss](\d{1,2})\s*[-._]\s*(\d{1,3})\b'), ('season', 'episode')),
