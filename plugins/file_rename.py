@@ -29,41 +29,51 @@ renaming_operations = {}
 defaultdict = getattr(__import__('collections'), 'defaultdict')
 user_queues = {}
 
-# regex patterns
 SEASON_EPISODE_PATTERNS = [
-    # 🎯 Most specific: S01E02 or S1E2
-    (re.compile(r'\b[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})\b'), ('season', 'episode')),
-    # Ignore numbers like 480, 720, 1080, 2160
-    (re.compile(r'(?<!\d)(?!(?:480|720|1080|2160)p)[._\s-]*(\d{1,3})[._\s-]*(?!\d)', re.IGNORECASE), (None, 'episode')),
-    # 🎯 1x02 format
-    (re.compile(r'\b(\d{1,2})x(\d{1,3})\b'), ('season', 'episode')),
 
-    # 🎯 S1 - 02, S1_02, S1.-.02, etc.
-    (re.compile(r'\b[Ss](\d{1,2})\s*[-._]\s*(\d{1,3})\b'), ('season', 'episode')),
-    (re.compile(r'[_\W]*[Ss](\d{1,2})\s*[-._]+\s*(\d{1,3})[_\W]*'), ('season', 'episode')),
+    # 🎯 S01E02 / S1E2 / S03E02 / dot-separated
+    (re.compile(r'\b[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})\b'),
+     ('season', 'episode')),
 
-    # 🎯 Full words: Season 1 Episode 2
-    (re.compile(r'\bSeason[\s_]*(\d{1,2})[\s_-]*Episode[\s_]*(\d{1,3})\b', re.IGNORECASE), ('season', 'episode')),
+    # 🎯 S1 - 02 / S2 - 25
+    (re.compile(r'\b[Ss](\d{1,2})\s*[-._]\s*(\d{1,3})\b'),
+     ('season', 'episode')),
 
-    # 🎯 Patterns with bracket forms [S01][E02]
-    (re.compile(r'\[S(\d+)\]\[E(\d+)\]'), ('season', 'episode')),
+    # 🎯 S02E01 appearing after dash or text
+    (re.compile(r'[-._\s]+[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})\b'),
+     ('season', 'episode')),
 
+    # 🎯 1st / 2nd / 3rd / 4th / 5th Season - 01
+    (re.compile(r'\b(\d{1,2})(?:st|nd|rd|th)\s+Season\s*[-._]\s*(\d{1,3})\b', re.IGNORECASE),
+     ('season', 'episode')),
 
-    # 🎯 "S3 - 02" or "Season 3 - 02"
-    (re.compile(r'\b[Ss](\d{1,2})\s*[-._]\s*(\d{1,3})\b'), ('season', 'episode')),
+    # 🎯 Worded Season (Second Season - 02)
+    (re.compile(
+        r'\b(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)\s+Season\s*[-._]\s*(\d{1,3})\b',
+        re.IGNORECASE
+    ), ('season_word', 'episode')),
 
-    # ✅ Episode-only formats (when no season info)
-    (re.compile(r'\b[Ee][Pp]?[ ._-]?(\d{1,3})\b'), (None, 'episode')),
-    (re.compile(r'\bEpisode[\s_-]*(\d{1,3})\b', re.IGNORECASE), (None, 'episode')),
-    (re.compile(r'\bEp[\s_-]*(\d{1,3})\b', re.IGNORECASE), (None, 'episode')),
+    # 🎯 Anime Name - 01 (episode only)
+    (re.compile(r'\b-\s*(\d{1,3})\b'),
+     (None, 'episode')),
 
-    # ✅ Season-only formats (rare)
-    (re.compile(r'\b[Ss]eason[\s_-]*(\d{1,2})\b'), ('season', None)),
-    (re.compile(r'\b[Ss](\d{1,2})\b'), ('season', None)),
-
-    # 🔚 Standalone episode number fallback (e.g. "01", "_02_", "- 03 -", ".04.")
-    (re.compile(r'(?<!\d)[._\s-]*(\d{1,3})[._\s-]*(?!\d)'), (None, 'episode')),
+    # 🎯 Trailing episode before hash/brackets
+    (re.compile(r'\b(\d{1,3})\s*(?=\[)'),
+     (None, 'episode')),
 ]
+
+WORD_TO_SEASON = {
+    "first": 1,
+    "second": 2,
+    "third": 3,
+    "fourth": 4,
+    "fifth": 5,
+    "sixth": 6,
+    "seventh": 7,
+    "eighth": 8,
+    "ninth": 9,
+    "tenth": 10
+}
 
 QUALITY_PATTERNS = [
     # Explicit resolutions
@@ -89,14 +99,35 @@ QUALITY_PATTERNS = [
 # helper functions
 
 def extract_season_episode(filename):
-    for pattern, (season_group, episode_group) in SEASON_EPISODE_PATTERNS:
+    season = None
+    episode = None
+
+    for pattern, fields in SEASON_EPISODE_PATTERNS:
         match = pattern.search(filename)
-        if match:
-            groups = match.groups()
-            season = groups[0] if season_group else None
-            episode = groups[1] if episode_group and len(groups) > 1 else groups[0]
-            return season, episode
-    return None, None
+        if not match:
+            continue
+
+        groups = match.groups()
+
+        for idx, field in enumerate(fields):
+            value = groups[idx]
+
+            if not value:
+                continue
+
+            if field == "season":
+                season = int(value)
+
+            elif field == "episode":
+                episode = int(value)
+
+            elif field == "season_word":
+                season = WORD_TO_SEASON.get(value.lower())
+
+        if season is not None or episode is not None:
+            break
+
+    return season, episode
 
 async def cmd_exec(cmd: list):
     process = await asyncio.create_subprocess_exec(
