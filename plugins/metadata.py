@@ -1,3 +1,4 @@
+# metadata.py (updated)
 from helper.database import codeflixbots as db
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
@@ -24,6 +25,8 @@ async def metadata(client, message):
     video = await db.get_video(user_id)
     audio = await db.get_audio(user_id)
     subtitle = await db.get_subtitle(user_id)
+    encoded_by = await db.get_encoded_by(user_id)
+    custom_tag = await db.get_custom_tag(user_id)
 
     # Display the current metadata
     text = f"""
@@ -35,6 +38,8 @@ async def metadata(client, message):
 **◈ Audio ▹** `{audio if audio else 'Not found'}`
 **◈ Subtitle ▹** `{subtitle if subtitle else 'Not found'}`
 **◈ Video ▹** `{video if video else 'Not found'}`
+**◈ Encoded By ▹** `{encoded_by if encoded_by else 'Not found'}`
+**◈ Custom Tag ▹** `{custom_tag if custom_tag else 'Not found'}`
     """
 
     # Inline buttons
@@ -52,7 +57,7 @@ async def metadata(client, message):
     await message.reply_text(text=text, reply_markup=keyboard, disable_web_page_preview=True)
 
 
-@Client.on_callback_query(filters.regex(r"on_metadata|off_metadata|metainfo|meta_(title|author|artist|audio|subtitle|video)|set_(title|author|artist|audio|subtitle|video)|delete_(title|author|artist|audio|subtitle|video)|back_(main|types)|cancel_(title|author|artist|audio|subtitle|video)"))
+@Client.on_callback_query(filters.regex(r"on_metadata|off_metadata|metainfo|meta_(title|author|artist|audio|subtitle|video|encoded_by|custom_tag)|set_(title|author|artist|audio|subtitle|video|encoded_by|custom_tag)|delete_(title|author|artist|audio|subtitle|video|encoded_by|custom_tag)|back_(main|types)|cancel_(title|author|artist|audio|subtitle|video|encoded_by|custom_tag)"))
 async def metadata_callback(client, query: CallbackQuery):
     user_id = query.from_user.id
     data = query.data
@@ -68,6 +73,8 @@ async def metadata_callback(client, query: CallbackQuery):
         video = await db.get_video(user_id)
         audio = await db.get_audio(user_id)
         subtitle = await db.get_subtitle(user_id)
+        encoded_by = await db.get_encoded_by(user_id)
+        custom_tag = await db.get_custom_tag(user_id)
 
         text = f"""
 **㊋ Your Metadata is currently: {current}**
@@ -78,6 +85,8 @@ async def metadata_callback(client, query: CallbackQuery):
 **◈ Audio ▹** `{audio if audio else 'Not found'}`
 **◈ Subtitle ▹** `{subtitle if subtitle else 'Not found'}`
 **◈ Video ▹** `{video if video else 'Not found'}`
+**◈ Encoded By ▹** `{encoded_by if encoded_by else 'Not found'}`
+**◈ Custom Tag ▹** `{custom_tag if custom_tag else 'Not found'}`
         """
         buttons = [
             [
@@ -107,6 +116,10 @@ async def metadata_callback(client, query: CallbackQuery):
                 InlineKeyboardButton("Video", callback_data="meta_video")
             ],
             [
+                InlineKeyboardButton("Encoded By", callback_data="meta_encoded_by"),
+                InlineKeyboardButton("Custom Tag", callback_data="meta_custom_tag")
+            ],
+            [
                 InlineKeyboardButton("Back", callback_data="back_main")
             ]
         ]
@@ -125,6 +138,8 @@ async def metadata_callback(client, query: CallbackQuery):
         video = await db.get_video(user_id)
         audio = await db.get_audio(user_id)
         subtitle = await db.get_subtitle(user_id)
+        encoded_by = await db.get_encoded_by(user_id)
+        custom_tag = await db.get_custom_tag(user_id)
 
         text = f"""
 **㊋ Your Metadata is currently: {current}**
@@ -135,6 +150,8 @@ async def metadata_callback(client, query: CallbackQuery):
 **◈ Audio ▹** `{audio if audio else 'Not found'}`
 **◈ Subtitle ▹** `{subtitle if subtitle else 'Not found'}`
 **◈ Video ▹** `{video if video else 'Not found'}`
+**◈ Encoded By ▹** `{encoded_by if encoded_by else 'Not found'}`
+**◈ Custom Tag ▹** `{custom_tag if custom_tag else 'Not found'}`
         """
         buttons = [
             [
@@ -150,18 +167,20 @@ async def metadata_callback(client, query: CallbackQuery):
 
     # Handle metadata type selection (e.g., meta_title)
     if data.startswith("meta_"):
-        meta_type = data.split("_")[1]
+        meta_type = data.split("_")[1] if "_" not in data.split("_")[1] else "_".join(data.split("_")[1:])
         meta_value = {
             "title": await db.get_title(user_id),
             "author": await db.get_author(user_id),
             "artist": await db.get_artist(user_id),
             "audio": await db.get_audio(user_id),
             "subtitle": await db.get_subtitle(user_id),
-            "video": await db.get_video(user_id)
+            "video": await db.get_video(user_id),
+            "encoded_by": await db.get_encoded_by(user_id),
+            "custom_tag": await db.get_custom_tag(user_id)
         }[meta_type]
 
         text = f"""
-**Set your metadata for {meta_type.capitalize()}!**
+**Set your metadata for {meta_type.replace('_', ' ').capitalize()}!**
 
 Your current value: `{meta_value if meta_value else 'Not set'}`
         """
@@ -175,7 +194,7 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
 
     # Handle set/change metadata
     if data.startswith("set_"):
-        meta_type = data.split("_")[1]
+        meta_type = data.split("_")[1] if "_" not in data.split("_")[1] else "_".join(data.split("_")[1:])
         # Fetch the current metadata value
         meta_value = {
             "title": await db.get_title(user_id),
@@ -183,10 +202,12 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
             "artist": await db.get_artist(user_id),
             "audio": await db.get_audio(user_id),
             "subtitle": await db.get_subtitle(user_id),
-            "video": await db.get_video(user_id)
+            "video": await db.get_video(user_id),
+            "encoded_by": await db.get_encoded_by(user_id),
+            "custom_tag": await db.get_custom_tag(user_id)
         }[meta_type]
         text = f"""
-**Set your metadata for {meta_type.capitalize()}!**
+**Set your metadata for {meta_type.replace('_', ' ').capitalize()}!**
 
 __Please reply to this message with the new value.__
 For example: [TG: @Animes_Guy]
@@ -210,7 +231,7 @@ __**Your current value**__: `{meta_value if meta_value else 'Not set'}`
 
     # Handle cancel
     if data.startswith("cancel_"):
-        meta_type = data.split("_")[1]
+        meta_type = data.split("_")[1] if "_" not in data.split("_")[1] else "_".join(data.split("_")[1:])
         if user_id in user_states:
             del user_states[user_id]  # Clear state
         meta_value = {
@@ -219,10 +240,12 @@ __**Your current value**__: `{meta_value if meta_value else 'Not set'}`
             "artist": await db.get_artist(user_id),
             "audio": await db.get_audio(user_id),
             "subtitle": await db.get_subtitle(user_id),
-            "video": await db.get_video(user_id)
+            "video": await db.get_video(user_id),
+            "encoded_by": await db.get_encoded_by(user_id),
+            "custom_tag": await db.get_custom_tag(user_id)
         }[meta_type]
         text = f"""
-**Set your metadata for {meta_type.capitalize()}!**
+**Set your metadata for {meta_type.replace('_', ' ').capitalize()}!**
 
 Your current value: `{meta_value if meta_value else 'Not set'}`
         """
@@ -235,19 +258,21 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
 
     # Handle delete metadata
     if data.startswith("delete_"):
-        meta_type = data.split("_")[1]
+        meta_type = data.split("_")[1] if "_" not in data.split("_")[1] else "_".join(data.split("_")[1:])
         delete_functions = {
             "title": db.delete_title,
             "author": db.delete_author,
             "artist": db.delete_artist,
             "audio": db.delete_audio,
             "subtitle": db.delete_subtitle,
-            "video": db.delete_video
+            "video": db.delete_video,
+            "encoded_by": db.delete_encoded_by,
+            "custom_tag": db.delete_custom_tag
         }
         if meta_type in delete_functions:
             try:
                 await delete_functions[meta_type](user_id)
-                await query.message.edit_text(f"**✅ {meta_type.capitalize()} metadata deleted**", reply_markup=InlineKeyboardMarkup([
+                await query.message.edit_text(f"**✅ {meta_type.replace('_', ' ').capitalize()} metadata deleted**", reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("Back", callback_data="metainfo")]
                 ]))
             except Exception as e:
@@ -273,6 +298,10 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
                 InlineKeyboardButton("Video", callback_data="meta_video")
             ],
             [
+                InlineKeyboardButton("Encoded By", callback_data="meta_encoded_by"),
+                InlineKeyboardButton("Custom Tag", callback_data="meta_custom_tag")
+            ],
+            [
                 InlineKeyboardButton("Back", callback_data="back_main")
             ]
         ]
@@ -296,7 +325,7 @@ async def timeout_handler(client, user_id, meta_type, meta_value):
             del user_states[user_id]
             # Revert to metadata type menu
             text = f"""
-**Set your metadata for {meta_type.capitalize()}!**
+**Set your metadata for {meta_type.replace('_', ' ').capitalize()}!**
 
 Your current value: `{meta_value if meta_value else 'Not set'}`
             """
@@ -325,7 +354,7 @@ async def handle_metadata_input(client, message):
     if message.reply_to_message.id != user_states[user_id]["prompt_message_id"]:
         return
 
-    meta_type = user_states[user_id]["state"].split("_")[1]
+    meta_type = user_states[user_id]["state"].split("_")[1] if "_" not in user_states[user_id]["state"].split("_")[1] else "_".join(user_states[user_id]["state"].split("_")[1:])
     value = message.text.strip()
     if not value:
         await message.reply_text("**❌ Input cannot be empty. Please reply with a valid value.**")
@@ -337,13 +366,15 @@ async def handle_metadata_input(client, message):
         "artist": db.set_artist,
         "audio": db.set_audio,
         "subtitle": db.set_subtitle,
-        "video": db.set_video
+        "video": db.set_video,
+        "encoded_by": db.set_encoded_by,
+        "custom_tag": db.set_custom_tag
     }
     try:
         await set_functions[meta_type](user_id, value)
         menu_message_id = user_states[user_id]["menu_message_id"]
         del user_states[user_id]  # Clear state
-        await message.reply_text(f"**✅ {meta_type.capitalize()} saved**")
+        await message.reply_text(f"**✅ {meta_type.replace('_', ' ').capitalize()} saved**")
         # Refresh metadata type menu
         meta_value = {
             "title": await db.get_title(user_id),
@@ -351,10 +382,12 @@ async def handle_metadata_input(client, message):
             "artist": await db.get_artist(user_id),
             "audio": await db.get_audio(user_id),
             "subtitle": await db.get_subtitle(user_id),
-            "video": await db.get_video(user_id)
+            "video": await db.get_video(user_id),
+            "encoded_by": await db.get_encoded_by(user_id),
+            "custom_tag": await db.get_custom_tag(user_id)
         }[meta_type]
         text = f"""
-**Set your metadata for {meta_type.capitalize()}!**
+**Set your metadata for {meta_type.replace('_', ' ').capitalize()}!**
 
 Your current value: `{meta_value if meta_value else 'Not set'}`
         """
@@ -380,10 +413,12 @@ Your current value: `{meta_value if meta_value else 'Not set'}`
             "artist": await db.get_artist(user_id),
             "audio": await db.get_audio(user_id),
             "subtitle": await db.get_subtitle(user_id),
-            "video": await db.get_video(user_id)
+            "video": await db.get_video(user_id),
+            "encoded_by": await db.get_encoded_by(user_id),
+            "custom_tag": await db.get_custom_tag(user_id)
         }[meta_type]
         text = f"""
-**Set your metadata for {meta_type.capitalize()}!**
+**Set your metadata for {meta_type.replace('_', ' ').capitalize()}!**
 
 Your current value: `{meta_value if meta_value else 'Not set'}`
         """
