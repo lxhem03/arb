@@ -1,3 +1,4 @@
+# helper/database.py (updated)
 import motor.motor_asyncio, datetime, pytz
 from config import Config
 import logging  # Added for logging errors and important information
@@ -22,7 +23,7 @@ class Database:
             join_date=datetime.date.today().isoformat(),
             file_id=None,
             caption=None,
-            metadata=False,
+            metadata="Off",  # Changed to string "Off" for consistency
             metadata_code=None,
             format_template=None,
             ban_status=dict(
@@ -135,7 +136,11 @@ class Database:
 
     async def get_metadata(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
-        return user.get('metadata', "Off")
+        metadata = user.get('metadata', "Off")
+        # Ensure consistency: if it's boolean False, treat as "Off"
+        if metadata is False:
+            metadata = "Off"
+        return metadata
 
     async def set_metadata(self, user_id, metadata):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'metadata': metadata}})
@@ -182,6 +187,20 @@ class Database:
     async def set_video(self, user_id, video):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'video': video}})
 
+    async def get_encoded_by(self, user_id):
+        user = await self.col.find_one({'_id': int(user_id)})
+        return user.get('encoded_by', None)
+
+    async def set_encoded_by(self, user_id, encoded_by):
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'encoded_by': encoded_by}})
+
+    async def get_custom_tag(self, user_id):
+        user = await self.col.find_one({'_id': int(user_id)})
+        return user.get('custom_tag', None)
+
+    async def set_custom_tag(self, user_id, custom_tag):
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'custom_tag': custom_tag}})
+
     async def delete_title(self, user_id):
         await self.col.update_one({"_id": int(user_id)}, {"$unset": {"title": ""}})
 
@@ -199,5 +218,11 @@ class Database:
 
     async def delete_video(self, user_id):
         await self.col.update_one({"_id": int(user_id)}, {"$unset": {"video": ""}})
+
+    async def delete_encoded_by(self, user_id):
+        await self.col.update_one({"_id": int(user_id)}, {"$unset": {"encoded_by": ""}})
+
+    async def delete_custom_tag(self, user_id):
+        await self.col.update_one({"_id": int(user_id)}, {"$unset": {"custom_tag": ""}})
 
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
