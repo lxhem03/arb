@@ -1,10 +1,5 @@
-import os
-import re
-import time
-import shutil
-import asyncio
-import json
-import logging
+#fv1
+import os, re, time, shutil, asyncio, json, logging
 from datetime import datetime
 from PIL import Image
 from pyrogram import Client, filters
@@ -51,8 +46,8 @@ SEASON_EPISODE_PATTERNS = [
     ), ('season_word', 'episode')),
 
     # 🧨 Episode-only fallback (LAST)
-    (re.compile(r'(?<!\d)[._\s](\d{1,3})(?!\d)'),
-    (None, 'episode')),
+    (re.compile(r'(?<!\d)[._\s-]*(\d{1,3})[._\s-]*(?!\d)'), 
+    (None, 'episode')), 
 ]
 
 WORD_TO_SEASON = {k.lower(): v for k, v in {
@@ -156,27 +151,6 @@ async def process_thumbnail(thumb_path):
         await cleanup_files(thumb_path)
         return None
 
-# Safe download with FileReferenceExpired handling
-async def safe_download_media(client, message, file_name):
-    while True:
-        try:
-            return await client.download_media(
-                message=message,
-                file_name=file_name,
-                progress=progress_for_pyrogram,
-                progress_args=("Downloading...", message, time.time())
-            )
-        except FileReferenceExpired:
-            logger.warning(f"File reference expired for {message.id}, refreshing...")
-            # Refresh message to get new file_reference
-            message = await client.get_messages(message.chat.id, message.id)
-        except FloodWait as e:
-            logger.warning(f"FloodWait: {e.x} seconds")
-            await asyncio.sleep(e.x)
-        except Exception as e:
-            logger.error(f"Download failed: {e}")
-            raise
-
 # Metadata function (already fixed in previous messages)
 async def add_metadata(input_path, output_path, user_id):
     ffmpeg = shutil.which('ffmpeg')
@@ -234,7 +208,34 @@ async def user_queue_worker(user_id):
         finally:
             queue.task_done()
 
-# Main processing function
+
+async def safe_download_media(client, message, file_name, status_msg=None):
+    """
+    Download media safely with FileReferenceExpired handling
+    and proper progress bar using status_msg
+    """
+    while True:
+        try:
+            progress_args = None
+            if status_msg:
+                progress_args = ("Downloading...", status_msg, time.time())
+
+            return await client.download_media(
+                message=message,
+                file_name=file_name,
+                progress=progress_for_pyrogram if status_msg else None,
+                progress_args=progress_args
+            )
+        except FileReferenceExpired:
+            logger.warning(f"File reference expired for message {message.id}, refreshing...")
+            message = await client.get_messages(message.chat.id, message.id)
+        except FloodWait as e:
+            logger.warning(f"FloodWait: sleeping {e.value} seconds")
+            await asyncio.sleep(e.value)
+        except Exception as e:
+            logger.error(f"Download failed: {e}")
+            raise
+
 async def process_auto_rename_files(client, message: Message):
     user_id = message.from_user.id
     format_template = await codeflixbots.get_format_template(user_id)
@@ -246,9 +247,7 @@ async def process_auto_rename_files(client, message: Message):
         return await message.reply_text("❌ Unsupported file type")
 
     original_file_name = getattr(media, 'file_name', 'Unknown.file')
-    ext = os.path.splitext(original_file_name)[1]
-    if not ext:
-        ext = '.mkv' if message.document else '.mp4'
+    ext = os.path.splitext(original_file_name)[1] or '.mkv'
 
     if await check_anti_nsfw(original_file_name, message):
         return await message.reply_text("🚫 NSFW content detected and blocked.")
@@ -260,22 +259,24 @@ async def process_auto_rename_files(client, message: Message):
     renaming_operations[file_id] = datetime.now()
 
     download_path = metadata_path = thumb_path = None
-    status_msg = await message.reply_text("⬇️ **Downloading...**")
+    status_msg = await message.reply_text("⬇️ **Downloading... 0%**")  # Initial message
 
     try:
         os.makedirs("downloads", exist_ok=True)
         os.makedirs("metadata", exist_ok=True)
         os.makedirs("thumbs", exist_ok=True)
-
-        # Temporary download path (with timestamp to avoid collision)
         temp_download = f"downloads/{user_id}_{int(time.time())}{ext}"
-        file_path = await safe_download_media(client, message, temp_download)
+        file_path = await safe_download_media(
+            client=client,
+            message=message,
+            file_name=temp_download,
+            status_msg=status_msg  # ← This enables progress updates
+        )
         if not file_path:
             raise Exception("Download failed")
 
         await status_msg.edit_text("🔍 **Analyzing filename & quality...**")
 
-        # Extract season/episode safely
         season, episode = extract_season_episode(original_file_name)
         quality = await get_media_quality(file_path)
 
@@ -293,27 +294,26 @@ async def process_auto_rename_files(client, message: Message):
         for placeholder, value in replacements.items():
             new_name_base = new_name_base.replace(placeholder, value)
 
-        # Final clean filename — NO USER ID OR TIMESTAMP!
         final_filename = f"{new_name_base}{ext}"
-        metadata_path = f"metadata/{final_filename}"  # Clean name from start
+        metadata_path = f"metadata/{final_filename}"
 
         await status_msg.edit_text("🖊️ **Applying metadata...**")
         await add_metadata(file_path, metadata_path, user_id)
-        file_path = metadata_path  # Now file_path has correct name
+        file_path = metadata_path
 
         caption = await codeflixbots.get_caption(user_id) or f"**{final_filename}**"
 
-        # Thumbnail handling
+        # Thumbnail
         custom_thumb = await codeflixbots.get_thumbnail(user_id)
         if custom_thumb:
             thumb_path = await safe_download_media(client, custom_thumb, f"thumbs/custom_{user_id}.jpg")
         elif message.video and getattr(message.video, 'thumbs', None):
             thumb_path = await safe_download_media(client, message.video.thumbs[0], f"thumbs/temp_{user_id}.jpg")
-
         thumb_path = await process_thumbnail(thumb_path)
 
-        await status_msg.edit_text("⬆️ **Uploading...**")
+        await status_msg.edit_text("⬆️ **Uploading... 0%**")
 
+        # UPLOAD WITH PROGRESS BAR (same style)
         upload_kwargs = {
             "caption": caption,
             "thumb": thumb_path,
@@ -333,9 +333,12 @@ async def process_auto_rename_files(client, message: Message):
     except Exception as e:
         logger.error(f"Processing failed for user {user_id}: {e}", exc_info=True)
         error_msg = str(e)
-        if "index out of range" in error_msg.lower():
-            error_msg = "Failed to detect season/episode from filename."
-        await message.reply_text(f"❌ **Error:** `{error_msg}`")
+        if "FILE_REFERENCE_EXPIRED" in error_msg:
+            error_msg = "File is too old/forwarded. Please send again."
+        try:
+            await status_msg.edit_text(f"❌ **Error:** `{error_msg}`")
+        except:
+            await message.reply_text(f"❌ **Error:** `{error_msg}`")
 
     finally:
         await cleanup_files(download_path, metadata_path, thumb_path)
