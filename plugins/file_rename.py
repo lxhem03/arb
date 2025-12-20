@@ -176,47 +176,78 @@ async def process_thumbnail(thumb_path):
         await cleanup_files(thumb_path)
         return None
 
+import shutil
+import asyncio
+
 async def add_metadata(input_path, output_path, user_id):
     ffmpeg = shutil.which('ffmpeg')
     if not ffmpeg:
         raise RuntimeError("FFmpeg not found")
 
-    metadata = {
-        'title': await codeflixbots.get_title(user_id),
-        'artist': await codeflixbots.get_artist(user_id),
-        'author': await codeflixbots.get_author(user_id),
-        'video_title': await codeflixbots.get_video(user_id),
-        'audio_title': await codeflixbots.get_audio(user_id),
-        'subtitle': await codeflixbots.get_subtitle(user_id)
-    }
+    # Check if global metadata feature is enabled
+    metadata_enabled = await codeflixbots.get_metadata(user_id)
+    if not metadata_enabled:
+        # Just copy the file without touching metadata
+        cmd = [ffmpeg, '-i', input_path, '-map', '0', '-c', 'copy', '-loglevel', 'error', output_path]
+        process = await asyncio.create_subprocess_exec(*cmd)
+        await process.wait()
+        if process.returncode != 0:
+            raise RuntimeError("FFmpeg failed during stream copy")
+        return
 
+    # Fetch all user metadata settings
+    title = await codeflixbots.get_title(user_id)
+    author = await codeflixbots.get_author(user_id)
+    artist = await codeflixbots.get_artist(user_id)
+    video = await codeflixbots.get_video(user_id)
+    audio = await codeflixbots.get_audio(user_id)
+    subtitle = await codeflixbots.get_subtitle(user_id)
+
+    # Remove flags (only for audio and subtitle)
+    remove_audio = await codeflixbots.get_remove_audio_metadata(user_id)
+    remove_subtitle = await codeflixbots.get_remove_subtitle_metadata(user_id)
+
+    # Base command: copy all streams
     cmd = [ffmpeg, '-i', input_path, '-map', '0', '-c', 'copy']
-    for key, value in metadata.items():
-        if value:
-            if key.startswith('video_'):
-                cmd += ['-metadata:s:v', f'title={value}']
-            elif key.startswith('audio_'):
-                cmd += ['-metadata:s:a', f'title={value}']
-            elif key.startswith('sub'):
-                cmd += ['-metadata:s:s', f'title={value}']
-            else:
-                cmd += ['-metadata', f'{key}={value}']
-        else:
-            if key.startswith('video_'):
-                cmd += ['-metadata:s:v', 'title=']
-            elif key.startswith('audio_'):
-                cmd += ['-metadata:s:a', 'title=']
-            elif key.startswith('sub'):
-                cmd += ['-metadata:s:s', 'title=']
-            else:
-                cmd += ['-metadata', f'{key}=']
+
+    # Global metadata (applies to the container)
+    if title:
+        cmd += ['-metadata', f'title={title}']
+    if author:
+        cmd += ['-metadata', f'author={author}']
+    if artist:
+        cmd += ['-metadata', f'artist={artist}']
+
+    # Video stream metadata
+    if video:
+        cmd += ['-metadata:s:v', f'title={video}']
+    # No "remove" for video/title/author/artist — only preserve or set
+
+    # Audio stream metadata
+    if audio:
+        cmd += ['-metadata:s:a', f'title={audio}']
+    elif remove_audio:
+        cmd += ['-metadata:s:a', 'title=']  # This removes existing audio title
+
+    # Subtitle stream metadata
+    if subtitle:
+        cmd += ['-metadata:s:s', f'title={subtitle}']
+    elif remove_subtitle:
+        cmd += ['-metadata:s:s', 'title=']  # This removes existing subtitle title
+
+    # Optional: Fully strip all metadata from specific streams (more aggressive)
+    # Uncomment if you want to completely remove ALL metadata tags from audio/subtitle when remove is on
+    # if remove_audio:
+    #     cmd += ['-metadata:s:a', '']
+    # if remove_subtitle:
+    #     cmd += ['-metadata:s:s', '']
 
     cmd += ['-loglevel', 'error', output_path]
 
-    process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    _, stderr = await process.communicate()
+    process = await asyncio.create_subprocess_exec(*cmd)
+    await process.wait()
     if process.returncode != 0:
-        raise RuntimeError(f"FFmpeg error: {stderr.decode()}")
+        raise RuntimeError(f"FFmpeg failed to add metadata")
 
 # The worker function for each user's queue
 async def user_queue_worker(user_id):
