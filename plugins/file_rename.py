@@ -1,4 +1,4 @@
-#fv1
+#fv1-1
 import os, re, time, shutil, asyncio, json, logging
 from datetime import datetime
 from PIL import Image
@@ -45,9 +45,9 @@ SEASON_EPISODE_PATTERNS = [
         re.IGNORECASE
     ), ('season_word', 'episode')),
 
-    # 🧨 Episode-only fallback (LAST)
-    (re.compile(r'(?<!\d)[._\s-]*(\d{1,3})[._\s-]*(?!\d)'), 
-    (None, 'episode')), 
+    # 🧨 Episode-only fallback (FINAL, FIXES _13_Dual)
+    (re.compile(r'(?<!\d)(?:[._\s])(\d{1,3})(?=[._\sA-Za-z])'),
+     (None, 'episode')), 
 ]
 
 WORD_TO_SEASON = {k.lower(): v for k, v in {
