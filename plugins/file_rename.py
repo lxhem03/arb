@@ -51,8 +51,8 @@ SEASON_EPISODE_PATTERNS = [
     ), ('season_word', 'episode')),
 
     # 🧨 Episode-only fallback (LAST)
-    (re.compile(r'[._\s](\d{1,3})[._\s]'),
-     (None, 'episode')),
+    (re.compile(r'(?<!\d)[._\s](\d{1,3})(?!\d)'),
+    (None, 'episode')),
 ]
 
 WORD_TO_SEASON = {k.lower(): v for k, v in {
