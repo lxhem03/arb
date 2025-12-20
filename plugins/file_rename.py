@@ -27,29 +27,34 @@ logger = logging.getLogger(__name__)
 renaming_operations = {}
 user_queues = {}
 
-# Season/Episode patterns
 SEASON_EPISODE_PATTERNS = [
 
+    # 🥇 S01E02 / S06E17 (highest priority)
     (re.compile(r'\b[Ss](\d{1,2})[Ee](\d{1,3})\b'),
      ('season', 'episode')),
 
-    (re.compile(r'\b[Ss](\d{1,2})[._\s-]+(\d{1,3})\b'),
+    # 🥈 S2_16 / S2.16 / S2 16
+    (re.compile(r'\b[Ss](\d{1,2})[._\s]+(\d{1,3})\b'),
      ('season', 'episode')),
 
+    # 🥉 4th_Season_23 / 5th Season 09 / 3rd.Season.24
     (re.compile(
         r'\b(\d{1,2})(?:st|nd|rd|th)[._\s]+Season[._\s]+(\d{1,3})\b',
         re.IGNORECASE
     ), ('season', 'episode')),
 
+    # 🏅 Worded seasons: Fifth_Season_25
     (re.compile(
         r'\b(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)'
         r'[._\s]+Season[._\s]+(\d{1,3})\b',
         re.IGNORECASE
     ), ('season_word', 'episode')),
 
-    (re.compile(r'(?<!\d)[._\s]+(\d{1,3})[._\s]+(?!\d)'),
+    # 🧨 Episode-only (VERY LAST, SAFE)
+    (re.compile(r'(?<!\d)[._\s](\d{1,3})[._\s](?!\d)'),
      (None, 'episode')),
 ]
+
 WORD_TO_SEASON = {k.lower(): v for k, v in {
     "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5,
     "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10
@@ -277,10 +282,13 @@ async def process_auto_rename_files(client, message: Message):
         season, episode = extract_season_episode(original_file_name)
         quality = await get_media_quality(file_path)
 
-        # Safe replacements — always string, never None
+        # Safe defaults
+        detected_season = season or 1
+        detected_episode = episode or 1
+
         replacements = {
-            '{season}': str(season or '').zfill(2),   # 01, 02, etc.
-            '{episode}': str(episode or '').zfill(2),
+            '{season}': str(detected_season),
+            '{episode}': str(detected_episode).zfill(2),
             '{quality}': str(quality or 'Unknown'),
         }
 
