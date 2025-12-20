@@ -29,29 +29,29 @@ user_queues = {}
 
 SEASON_EPISODE_PATTERNS = [
 
-    # 🥇 S01E02 / S06E17 (highest priority)
-    (re.compile(r'\b[Ss](\d{1,2})[Ee](\d{1,3})\b'),
+    # 🥇 S01E02 / S06E17
+    (re.compile(r'[Ss](\d{1,2})[Ee](\d{1,3})'),
      ('season', 'episode')),
 
     # 🥈 S2_16 / S2.16 / S2 16
-    (re.compile(r'\b[Ss](\d{1,2})[._\s]+(\d{1,3})\b'),
+    (re.compile(r'[Ss](\d{1,2})[._\s]+(\d{1,3})'),
      ('season', 'episode')),
 
-    # 🥉 4th_Season_23 / 5th Season 09 / 3rd.Season.24
+    # 🥉 4th_Season_23 / 5th Season 09
     (re.compile(
-        r'\b(\d{1,2})(?:st|nd|rd|th)[._\s]+Season[._\s]+(\d{1,3})\b',
+        r'(\d{1,2})(?:st|nd|rd|th)[._\s]+Season[._\s]+(\d{1,3})',
         re.IGNORECASE
     ), ('season', 'episode')),
 
     # 🏅 Worded seasons: Fifth_Season_25
     (re.compile(
-        r'\b(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)'
-        r'[._\s]+Season[._\s]+(\d{1,3})\b',
+        r'(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)'
+        r'[._\s]+Season[._\s]+(\d{1,3})',
         re.IGNORECASE
     ), ('season_word', 'episode')),
 
-    # 🧨 Episode-only (VERY LAST, SAFE)
-    (re.compile(r'(?<!\d)[._\s](\d{1,3})[._\s](?!\d)'),
+    # 🧨 Episode-only fallback (LAST)
+    (re.compile(r'[._\s](\d{1,3})[._\s]'),
      (None, 'episode')),
 ]
 
@@ -77,7 +77,9 @@ QUALITY_PATTERNS = [
 ]
 
 def extract_season_episode(filename):
-    season = episode = None
+    season = None
+    episode = None
+
     for pattern, fields in SEASON_EPISODE_PATTERNS:
         match = pattern.search(filename)
         if not match:
@@ -85,28 +87,23 @@ def extract_season_episode(filename):
 
         groups = match.groups()
 
-        i = 0
-        for field in fields:
+        for idx, field in enumerate(fields):
             if field is None:
                 continue
-            if i >= len(groups):
-                break
-            value = groups[i].strip()
-            i += 1
 
+            if idx >= len(groups):
+                continue
+
+            value = groups[idx]
             if not value:
                 continue
 
             if field == "season":
-                try:
-                    season = int(value)
-                except ValueError:
-                    pass
+                season = int(value)
+
             elif field == "episode":
-                try:
-                    episode = int(value)
-                except ValueError:
-                    pass
+                episode = int(value)
+
             elif field == "season_word":
                 season = WORD_TO_SEASON.get(value.lower())
 
