@@ -1,4 +1,4 @@
-#fv1-5
+#fv1-6
 import os, re, time, shutil, asyncio, json, logging
 from datetime import datetime
 from PIL import Image
@@ -24,29 +24,26 @@ user_queues = {}
 
 SEASON_EPISODE_PATTERNS = [
 
-    # 🥇 S01E02 / S06E17
+    # S01E02 / S06E17
     (re.compile(r'[Ss](\d{1,2})[Ee](\d{1,3})'),
      ('season', 'episode')),
 
-    # 🥈 S2_16 / S2.16 / S2 16
+    # S2_16 / S2.16 / S2 16
     (re.compile(r'[Ss](\d{1,2})[._\s]+(\d{1,3})'),
      ('season', 'episode')),
 
-    # 🥉 4th_Season_23 / 5th Season 09
+    # 4th_Season_23 / 5th Season 09
     (re.compile(
         r'(\d{1,2})(?:st|nd|rd|th)[._\s]+Season[._\s]+(\d{1,3})',
         re.IGNORECASE
     ), ('season', 'episode')),
 
-    # 🏅 Worded seasons: Fifth_Season_25
+    # Worded seasons
     (re.compile(
         r'(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)'
         r'[._\s]+Season[._\s]+(\d{1,3})',
         re.IGNORECASE
     ), ('season_word', 'episode')),
-
-    # Final fallback (standalone number)
-    (re.compile(r'\b(\d+)\b'), (None, 'episode'))
 ]
 
 WORD_TO_SEASON = {k.lower(): v for k, v in {
@@ -74,16 +71,19 @@ def extract_season_episode(filename):
     season = None
     episode = None
 
-    # 1️⃣ First pass: season-aware patterns
-    for pattern, fields in SEASON_EPISODE_PATTERNS[:-1]:
-        match = pattern.search(filename)
+    # 🔹 Normalize separators (VERY IMPORTANT)
+    name = re.sub(r'[.\s]+', '_', filename)
+
+    # 1️⃣ Season-aware extraction
+    for pattern, fields in SEASON_EPISODE_PATTERNS:
+        match = pattern.search(name)
         if not match:
             continue
 
         groups = match.groups()
 
         for idx, field in enumerate(fields):
-            if field is None or idx >= len(groups):
+            if idx >= len(groups) or field is None:
                 continue
 
             value = groups[idx]
@@ -102,10 +102,9 @@ def extract_season_episode(filename):
         if season is not None or episode is not None:
             return season, episode
 
-    pattern, fields = SEASON_EPISODE_PATTERNS[-1]
-    match = pattern.search(filename)
-    if match:
-        episode = int(match.group(1))
+    m = re.search(r'(?<!\d)[_](\d{1,3})(?!\d)', name)
+    if m:
+        episode = int(m.group(1))
 
     return season, episode
 
