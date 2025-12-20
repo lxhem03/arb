@@ -1,7 +1,7 @@
-# helper/database.py (updated)
-import motor.motor_asyncio, datetime, pytz
+import motor.motor_asyncio
+import datetime
+import logging
 from config import Config
-import logging  # Added for logging errors and important information
 from .utils import send_log
 
 
@@ -9,11 +9,11 @@ class Database:
     def __init__(self, uri, database_name):
         try:
             self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
-            self._client.server_info()  # This will raise an exception if the connection fails
+            self._client.server_info()  # Test connection
             logging.info("Successfully connected to MongoDB")
         except Exception as e:
             logging.error(f"Failed to connect to MongoDB: {e}")
-            raise e  # Re-raise the exception after logging it
+            raise e
         self.codeflixbots = self._client[database_name]
         self.col = self.codeflixbots.user
 
@@ -23,7 +23,7 @@ class Database:
             join_date=datetime.date.today().isoformat(),
             file_id=None,
             caption=None,
-            metadata="Off",  # Changed to string "Off" for consistency
+            metadata=False,  # Now consistently boolean
             metadata_code=None,
             format_template=None,
             ban_status=dict(
@@ -31,7 +31,10 @@ class Database:
                 ban_duration=0,
                 banned_on=datetime.date.max.isoformat(),
                 ban_reason=''
-            )
+            ),
+            # New fields for removing metadata
+            remove_audio_metadata=False,
+            remove_subtitle_metadata=False
         )
 
     async def add_user(self, b, m):
@@ -62,8 +65,7 @@ class Database:
 
     async def get_all_users(self):
         try:
-            all_users = self.col.find({})
-            return all_users
+            return self.col.find({})
         except Exception as e:
             logging.error(f"Error getting all users: {e}")
             return None
@@ -104,9 +106,7 @@ class Database:
 
     async def set_format_template(self, id, format_template):
         try:
-            await self.col.update_one(
-                {"_id": int(id)}, {"$set": {"format_template": format_template}}
-            )
+            await self.col.update_one({"_id": int(id)}, {"$set": {"format_template": format_template}})
         except Exception as e:
             logging.error(f"Error setting format template for user {id}: {e}")
 
@@ -120,9 +120,7 @@ class Database:
 
     async def set_media_preference(self, id, media_type):
         try:
-            await self.col.update_one(
-                {"_id": int(id)}, {"$set": {"media_type": media_type}}
-            )
+            await self.col.update_one({"_id": int(id)}, {"$set": {"media_type": media_type}})
         except Exception as e:
             logging.error(f"Error setting media preference for user {id}: {e}")
 
@@ -134,73 +132,59 @@ class Database:
             logging.error(f"Error getting media preference for user {id}: {e}")
             return None
 
+    # Fixed: Now consistently uses boolean
     async def get_metadata(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
-        metadata = user.get('metadata', "Off")
-        # Ensure consistency: if it's boolean False, treat as "Off"
-        if metadata is False:
-            metadata = "Off"
-        return metadata
+        return user.get('metadata', False) if user else False
 
     async def set_metadata(self, user_id, metadata):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'metadata': metadata}})
+        value = True if str(metadata).lower() in ['on', 'true', '1'] else False
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'metadata': value}})
 
+    # Existing metadata fields
     async def get_title(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
-        return user.get('title', None)
+        return user.get('title', None) if user else None
 
     async def set_title(self, user_id, title):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'title': title}})
 
     async def get_author(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
-        return user.get('author', None)
+        return user.get('author', None) if user else None
 
     async def set_author(self, user_id, author):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'author': author}})
 
     async def get_artist(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
-        return user.get('artist', None)
+        return user.get('artist', None) if user else None
 
     async def set_artist(self, user_id, artist):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'artist': artist}})
 
     async def get_audio(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
-        return user.get('audio', None)
+        return user.get('audio', None) if user else None
 
     async def set_audio(self, user_id, audio):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'audio': audio}})
 
     async def get_subtitle(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
-        return user.get('subtitle', None)
+        return user.get('subtitle', None) if user else None
 
     async def set_subtitle(self, user_id, subtitle):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'subtitle': subtitle}})
 
     async def get_video(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
-        return user.get('video', None)
+        return user.get('video', None) if user else None
 
     async def set_video(self, user_id, video):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'video': video}})
 
-    async def get_encoded_by(self, user_id):
-        user = await self.col.find_one({'_id': int(user_id)})
-        return user.get('encoded_by', None)
-
-    async def set_encoded_by(self, user_id, encoded_by):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'encoded_by': encoded_by}})
-
-    async def get_custom_tag(self, user_id):
-        user = await self.col.find_one({'_id': int(user_id)})
-        return user.get('custom_tag', None)
-
-    async def set_custom_tag(self, user_id, custom_tag):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'custom_tag': custom_tag}})
-
+    # Delete functions
     async def delete_title(self, user_id):
         await self.col.update_one({"_id": int(user_id)}, {"$unset": {"title": ""}})
 
@@ -219,10 +203,20 @@ class Database:
     async def delete_video(self, user_id):
         await self.col.update_one({"_id": int(user_id)}, {"$unset": {"video": ""}})
 
-    async def delete_encoded_by(self, user_id):
-        await self.col.update_one({"_id": int(user_id)}, {"$unset": {"encoded_by": ""}})
+    # New: Remove metadata flags (only for audio and subtitle)
+    async def get_remove_audio_metadata(self, user_id):
+        user = await self.col.find_one({'_id': int(user_id)})
+        return user.get('remove_audio_metadata', False) if user else False
 
-    async def delete_custom_tag(self, user_id):
-        await self.col.update_one({"_id": int(user_id)}, {"$unset": {"custom_tag": ""}})
+    async def set_remove_audio_metadata(self, user_id, value: bool):
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'remove_audio_metadata': value}})
+
+    async def get_remove_subtitle_metadata(self, user_id):
+        user = await self.col.find_one({'_id': int(user_id)})
+        return user.get('remove_subtitle_metadata', False) if user else False
+
+    async def set_remove_subtitle_metadata(self, user_id, value: bool):
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'remove_subtitle_metadata': value}})
+
 
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
