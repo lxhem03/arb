@@ -1,4 +1,4 @@
-#fv1-4
+#fv1-5
 import os, re, time, shutil, asyncio, json, logging
 from datetime import datetime
 from PIL import Image
@@ -74,7 +74,8 @@ def extract_season_episode(filename):
     season = None
     episode = None
 
-    for pattern, fields in SEASON_EPISODE_PATTERNS:
+    # 1️⃣ First pass: season-aware patterns
+    for pattern, fields in SEASON_EPISODE_PATTERNS[:-1]:
         match = pattern.search(filename)
         if not match:
             continue
@@ -82,10 +83,7 @@ def extract_season_episode(filename):
         groups = match.groups()
 
         for idx, field in enumerate(fields):
-            if field is None:
-                continue
-
-            if idx >= len(groups):
+            if field is None or idx >= len(groups):
                 continue
 
             value = groups[idx]
@@ -102,7 +100,12 @@ def extract_season_episode(filename):
                 season = WORD_TO_SEASON.get(value.lower())
 
         if season is not None or episode is not None:
-            break
+            return season, episode
+
+    pattern, fields = SEASON_EPISODE_PATTERNS[-1]
+    match = pattern.search(filename)
+    if match:
+        episode = int(match.group(1))
 
     return season, episode
 
