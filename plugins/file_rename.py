@@ -77,18 +77,37 @@ def extract_season_episode(filename):
         match = pattern.search(filename)
         if not match:
             continue
+
         groups = match.groups()
-        for idx, field in enumerate(fields):
-            if not groups[idx]:
+
+        i = 0
+        for field in fields:
+            if field is None:
                 continue
+            if i >= len(groups):
+                break
+            value = groups[i].strip()
+            i += 1
+
+            if not value:
+                continue
+
             if field == "season":
-                season = int(groups[idx])
+                try:
+                    season = int(value)
+                except ValueError:
+                    pass
             elif field == "episode":
-                episode = int(groups[idx])
+                try:
+                    episode = int(value)
+                except ValueError:
+                    pass
             elif field == "season_word":
-                season = WORD_TO_SEASON.get(groups[idx].lower())
+                season = WORD_TO_SEASON.get(value.lower())
+
         if season is not None or episode is not None:
             break
+
     return season, episode
 
 async def cmd_exec(cmd: list):
@@ -220,15 +239,16 @@ async def process_auto_rename_files(client, message: Message):
     if not format_template:
         return await message.reply_text("⚠️ Please set a rename format using /autorename")
 
-    # Determine media
     media = message.document or message.video or message.audio
     if not media:
         return await message.reply_text("❌ Unsupported file type")
 
-    file_name = getattr(media, 'file_name', 'Unknown')
-    ext = os.path.splitext(file_name)[1] or '.mp4'
+    original_file_name = getattr(media, 'file_name', 'Unknown.file')
+    ext = os.path.splitext(original_file_name)[1]
+    if not ext:
+        ext = '.mkv' if message.document else '.mp4'
 
-    if await check_anti_nsfw(file_name, message):
+    if await check_anti_nsfw(original_file_name, message):
         return await message.reply_text("🚫 NSFW content detected and blocked.")
 
     file_id = media.file_id
@@ -243,47 +263,48 @@ async def process_auto_rename_files(client, message: Message):
     try:
         os.makedirs("downloads", exist_ok=True)
         os.makedirs("metadata", exist_ok=True)
+        os.makedirs("thumbs", exist_ok=True)
 
-        download_path = f"downloads/{user_id}_{int(time.time())}{ext}"
-
-        # Safe download
-        file_path = await safe_download_media(client, message, download_path)
+        # Temporary download path (with timestamp to avoid collision)
+        temp_download = f"downloads/{user_id}_{int(time.time())}{ext}"
+        file_path = await safe_download_media(client, message, temp_download)
         if not file_path:
             raise Exception("Download failed")
 
-        await status_msg.edit_text("🔍 **Detecting season/episode & quality...**")
-        season, episode = extract_season_episode(file_name)
+        await status_msg.edit_text("🔍 **Analyzing filename & quality...**")
+
+        # Extract season/episode safely
+        season, episode = extract_season_episode(original_file_name)
         quality = await get_media_quality(file_path)
 
-        # Safe replacements (convert to str, fallback to empty)
+        # Safe replacements — always string, never None
         replacements = {
-            '{season}': str(season or ''),
+            '{season}': str(season or '').zfill(2),   # 01, 02, etc.
             '{episode}': str(episode or '').zfill(2),
-            '{quality}': str(quality or ''),
-            'Season': str(season or ''),
-            'Episode': str(episode or '').zfill(2),
-            'QUALITY': str(quality or '')
+            '{quality}': str(quality or 'Unknown'),
         }
 
         new_name_base = format_template
         for placeholder, value in replacements.items():
             new_name_base = new_name_base.replace(placeholder, value)
 
-        new_filename = f"{new_name_base}{ext}"
-        metadata_path = f"metadata/{user_id}_{int(time.time())}_{new_filename}"
+        # Final clean filename — NO USER ID OR TIMESTAMP!
+        final_filename = f"{new_name_base}{ext}"
+        metadata_path = f"metadata/{final_filename}"  # Clean name from start
 
         await status_msg.edit_text("🖊️ **Applying metadata...**")
         await add_metadata(file_path, metadata_path, user_id)
-        file_path = metadata_path
+        file_path = metadata_path  # Now file_path has correct name
 
-        caption = await codeflixbots.get_caption(user_id) or f"**{new_filename}**"
+        caption = await codeflixbots.get_caption(user_id) or f"**{final_filename}**"
 
-        # Thumbnail
+        # Thumbnail handling
         custom_thumb = await codeflixbots.get_thumbnail(user_id)
         if custom_thumb:
-            thumb_path = await safe_download_media(client, custom_thumb, f"thumbs/{user_id}.jpg")
-        elif hasattr(message.video, 'thumbs') and message.video.thumbs:
+            thumb_path = await safe_download_media(client, custom_thumb, f"thumbs/custom_{user_id}.jpg")
+        elif message.video and getattr(message.video, 'thumbs', None):
             thumb_path = await safe_download_media(client, message.video.thumbs[0], f"thumbs/temp_{user_id}.jpg")
+
         thumb_path = await process_thumbnail(thumb_path)
 
         await status_msg.edit_text("⬆️ **Uploading...**")
@@ -306,10 +327,10 @@ async def process_auto_rename_files(client, message: Message):
 
     except Exception as e:
         logger.error(f"Processing failed for user {user_id}: {e}", exc_info=True)
-        error_text = str(e)
-        if "FILE_REFERENCE_EXPIRED" in error_text:
-            error_text = "File is too old or forwarded too many times. Please send it again."
-        await message.reply_text(f"❌ **Error:** `{error_text}`")
+        error_msg = str(e)
+        if "index out of range" in error_msg.lower():
+            error_msg = "Failed to detect season/episode from filename."
+        await message.reply_text(f"❌ **Error:** `{error_msg}`")
 
     finally:
         await cleanup_files(download_path, metadata_path, thumb_path)
