@@ -10,7 +10,7 @@ class Config(object):
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "8500246274:AAETH_r_w1R5AUOj_oLyQuLYbxJK20PBm68") 
 
     # database config
-    DB_NAME = os.environ.get("DB_NAME","dmo")     
+    DB_NAME = os.environ.get("DB_NAME","corazon")     
     DB_URL  = os.environ.get("DB_URL","mongodb+srv://python21java:8ZFGYMKJCqAPwsiO@filestore.f876hjv.mongodb.net/?retryWrites=true&w=majority&appName=Filestore")
     PORT = os.environ.get("PORT", "8080")
  
