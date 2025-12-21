@@ -1,82 +1,57 @@
-import os
-import re
-import time
-import shutil
-import asyncio
-import json
-import logging
+#fv1-6
+import os, re, time, shutil, asyncio, json, logging
 from datetime import datetime
 from PIL import Image
 from pyrogram import Client, filters
-from pyrogram.errors import FloodWait
-from pyrogram.types import InputMediaDocument, Message
+from pyrogram.errors import FloodWait, FileReferenceExpired
+from pyrogram.types import Message
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 from plugins.antinsfw import check_anti_nsfw
-from helper.utils import progress_for_pyrogram, humanbytes, convert
+from helper.utils import progress_for_pyrogram, humanbytes
 from helper.database import codeflixbots
 from config import Config
 
-# logging setup
+# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-renaming_operations = {}
 
-# Per-user queue and worker management
-defaultdict = getattr(__import__('collections'), 'defaultdict')
+renaming_operations = {}
 user_queues = {}
 
 SEASON_EPISODE_PATTERNS = [
 
-    # 🎯 S01E02 / S1E2 / S03E02 / dot-separated
-    (re.compile(r'\b[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})\b'),
+    # S01E02 / S06E17
+    (re.compile(r'[Ss](\d{1,2})[Ee](\d{1,3})'),
      ('season', 'episode')),
 
-    # 🎯 S1 - 02 / S2 - 25
-    (re.compile(r'\b[Ss](\d{1,2})\s*[-._]\s*(\d{1,3})\b'),
+    # S2_16 / S2.16 / S2 16
+    (re.compile(r'[Ss](\d{1,2})[._\s]+(\d{1,3})'),
      ('season', 'episode')),
 
-    # 🎯 S02E01 appearing after dash or text
-    (re.compile(r'[-._\s]+[Ss](\d{1,2})[ ._-]?[Ee](\d{1,3})\b'),
-     ('season', 'episode')),
-
-    # 🎯 1st / 2nd / 3rd / 4th / 5th Season - 01
-    (re.compile(r'\b(\d{1,2})(?:st|nd|rd|th)\s+Season\s*[-._]\s*(\d{1,3})\b', re.IGNORECASE),
-     ('season', 'episode')),
-
-    # 🎯 Worded Season (Second Season - 02)
+    # 4th_Season_23 / 5th Season 09
     (re.compile(
-        r'\b(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)\s+Season\s*[-._]\s*(\d{1,3})\b',
+        r'(\d{1,2})(?:st|nd|rd|th)[._\s]+Season[._\s]+(\d{1,3})',
+        re.IGNORECASE
+    ), ('season', 'episode')),
+
+    # Worded seasons
+    (re.compile(
+        r'(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)'
+        r'[._\s]+Season[._\s]+(\d{1,3})',
         re.IGNORECASE
     ), ('season_word', 'episode')),
-
-    # 🎯 Anime Name - 01 (episode only)
-    (re.compile(r'\b-\s*(\d{1,3})\b'),
-     (None, 'episode')),
-
-    # 🎯 Trailing episode before hash/brackets
-    (re.compile(r'\b(\d{1,3})\s*(?=\[)'),
-     (None, 'episode')),
 ]
 
-WORD_TO_SEASON = {
-    "first": 1,
-    "second": 2,
-    "third": 3,
-    "fourth": 4,
-    "fifth": 5,
-    "sixth": 6,
-    "seventh": 7,
-    "eighth": 8,
-    "ninth": 9,
-    "tenth": 10
-}
+WORD_TO_SEASON = {k.lower(): v for k, v in {
+    "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5,
+    "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10
+}.items()}
 
 QUALITY_PATTERNS = [
-    # Explicit resolutions
     (re.compile(r'\b(2160p|4k)\b', re.IGNORECASE), lambda m: '2160p'),
     (re.compile(r'\b(1440p|2k)\b', re.IGNORECASE), lambda m: '1440p'),
     (re.compile(r'\b1080p\b', re.IGNORECASE), lambda m: '1080p'),
@@ -85,33 +60,33 @@ QUALITY_PATTERNS = [
     (re.compile(r'\b360p\b', re.IGNORECASE), lambda m: '360p'),
     (re.compile(r'\b240p\b', re.IGNORECASE), lambda m: '240p'),
     (re.compile(r'\b144p\b', re.IGNORECASE), lambda m: '144p'),
-
-    # Common terms mapped to resolution
     (re.compile(r'\bUHD\b', re.IGNORECASE), lambda m: '2160p'),
     (re.compile(r'\bFHD\b', re.IGNORECASE), lambda m: '1080p'),
     (re.compile(r'\bHD\b', re.IGNORECASE), lambda m: '720p'),
     (re.compile(r'\bSD\b', re.IGNORECASE), lambda m: '480p'),
-
-    # Fallback: any number ending with "p"
-    (re.compile(r'\b(\d{3,4})[pP]\b'), lambda m: f"{m.group(1)}p")
+    (re.compile(r'\b(\d{3,4})[pP]\b'), lambda m: f"{m.group(1)}p"),
 ]
-
-# helper functions
 
 def extract_season_episode(filename):
     season = None
     episode = None
 
+    # 🔹 Normalize separators (VERY IMPORTANT)
+    name = re.sub(r'[.\s]+', '_', filename)
+
+    # 1️⃣ Season-aware extraction
     for pattern, fields in SEASON_EPISODE_PATTERNS:
-        match = pattern.search(filename)
+        match = pattern.search(name)
         if not match:
             continue
 
         groups = match.groups()
 
         for idx, field in enumerate(fields):
-            value = groups[idx]
+            if idx >= len(groups) or field is None:
+                continue
 
+            value = groups[idx]
             if not value:
                 continue
 
@@ -125,100 +100,100 @@ def extract_season_episode(filename):
                 season = WORD_TO_SEASON.get(value.lower())
 
         if season is not None or episode is not None:
-            break
+            return season, episode
+
+    m = re.search(r'(?<!\d)[_](\d{1,3})(?!\d)', name)
+    if m:
+        episode = int(m.group(1))
 
     return season, episode
 
 async def cmd_exec(cmd: list):
     process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
+        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
     stdout, stderr = await process.communicate()
-    return stdout.decode(), stderr.decode()
+    return stdout.decode().strip(), stderr.decode().strip()
 
 async def get_media_quality(path):
     try:
-        stdout, stderr = await cmd_exec([
-            "ffprobe", "-hide_banner", "-loglevel", "error", "-print_format", "json", "-show_format", "-show_streams", path
+        stdout, _ = await cmd_exec([
+            "ffprobe", "-hide_banner", "-loglevel", "error",
+            "-print_format", "json", "-show_streams", path
         ])
-        if stderr:
-            logger.warning(f'ffprobe stderr: {stderr}')
-        ffresult = json.loads(stdout)
-        for stream in ffresult.get("streams", []):
+        data = json.loads(stdout)
+        for stream in data.get("streams", []):
             if stream.get("codec_type") == "video":
                 height = stream.get("height")
                 if height:
-                    return f"{int(height)}p"
+                    return f"{height}p"
     except Exception as e:
-        logger.error(f'Error detecting quality: {e}')
+        logger.error(f"Error detecting quality: {e}")
     return "Unknown"
 
 async def cleanup_files(*paths):
     for path in paths:
-        try:
-            if path and os.path.exists(path):
+        if path and os.path.exists(path):
+            try:
                 os.remove(path)
-        except Exception as e:
-            logger.error(f"Error removing {path}: {e}")
+            except Exception as e:
+                logger.error(f"Error removing {path}: {e}")
 
 async def process_thumbnail(thumb_path):
     if not thumb_path or not os.path.exists(thumb_path):
         return None
     try:
         with Image.open(thumb_path) as img:
-            img = img.convert("RGB").resize((320, 320))
-            img.save(thumb_path, "JPEG")
+            img = img.convert("RGB").resize((320, 320), Image.LANCZOS)
+            img.save(thumb_path, "JPEG", quality=95)
         return thumb_path
     except Exception as e:
         logger.error(f"Thumbnail processing failed: {e}")
         await cleanup_files(thumb_path)
         return None
 
+# Metadata function (already fixed in previous messages)
 async def add_metadata(input_path, output_path, user_id):
     ffmpeg = shutil.which('ffmpeg')
     if not ffmpeg:
         raise RuntimeError("FFmpeg not found")
 
-    metadata = {
-        'title': await codeflixbots.get_title(user_id),
-        'artist': await codeflixbots.get_artist(user_id),
-        'author': await codeflixbots.get_author(user_id),
-        'video_title': await codeflixbots.get_video(user_id),
-        'audio_title': await codeflixbots.get_audio(user_id),
-        'subtitle': await codeflixbots.get_subtitle(user_id)
-    }
+    metadata_enabled = await codeflixbots.get_metadata(user_id)
+    if not metadata_enabled:
+        cmd = [ffmpeg, '-i', input_path, '-map', '0', '-c', 'copy', '-loglevel', 'error', output_path]
+        proc = await asyncio.create_subprocess_exec(*cmd)
+        await proc.wait()
+        if proc.returncode != 0:
+            raise RuntimeError("Stream copy failed")
+        return
+
+    title = await codeflixbots.get_title(user_id)
+    author = await codeflixbots.get_author(user_id)
+    artist = await codeflixbots.get_artist(user_id)
+    video = await codeflixbots.get_video(user_id)
+    audio = await codeflixbots.get_audio(user_id)
+    subtitle = await codeflixbots.get_subtitle(user_id)
+    remove_audio = await codeflixbots.get_remove_audio_metadata(user_id)
+    remove_subtitle = await codeflixbots.get_remove_subtitle_metadata(user_id)
 
     cmd = [ffmpeg, '-i', input_path, '-map', '0', '-c', 'copy']
-    for key, value in metadata.items():
-        if value:
-            if key.startswith('video_'):
-                cmd += ['-metadata:s:v', f'title={value}']
-            elif key.startswith('audio_'):
-                cmd += ['-metadata:s:a', f'title={value}']
-            elif key.startswith('sub'):
-                cmd += ['-metadata:s:s', f'title={value}']
-            else:
-                cmd += ['-metadata', f'{key}={value}']
-        else:
-            if key.startswith('video_'):
-                cmd += ['-metadata:s:v', 'title=']
-            elif key.startswith('audio_'):
-                cmd += ['-metadata:s:a', 'title=']
-            elif key.startswith('sub'):
-                cmd += ['-metadata:s:s', 'title=']
-            else:
-                cmd += ['-metadata', f'{key}=']
+
+    if title: cmd += ['-metadata', f'title={title}']
+    if author: cmd += ['-metadata', f'author={author}']
+    if artist: cmd += ['-metadata', f'artist={artist}']
+    if video: cmd += ['-metadata:s:v', f'title={video}']
+    if audio: cmd += ['-metadata:s:a', f'title={audio}']
+    elif remove_audio: cmd += ['-metadata:s:a', 'title=']
+    if subtitle: cmd += ['-metadata:s:s', f'title={subtitle}']
+    elif remove_subtitle: cmd += ['-metadata:s:s', 'title=']
 
     cmd += ['-loglevel', 'error', output_path]
+    proc = await asyncio.create_subprocess_exec(*cmd)
+    await proc.wait()
+    if proc.returncode != 0:
+        raise RuntimeError("Metadata processing failed")
 
-    process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    _, stderr = await process.communicate()
-    if process.returncode != 0:
-        raise RuntimeError(f"FFmpeg error: {stderr.decode()}")
-
-# The worker function for each user's queue
+# Worker
 async def user_queue_worker(user_id):
     queue = user_queues[user_id]['queue']
     while True:
@@ -226,122 +201,151 @@ async def user_queue_worker(user_id):
         try:
             await process_auto_rename_files(client, message)
         except Exception as e:
-            logger.error(f"Error processing file for user {user_id}: {e}")
-        queue.task_done()
+            logger.error(f"Error in worker for user {user_id}: {e}", exc_info=True)
+            try:
+                await message.reply_text(f"**Error processing file:** `{str(e)}`")
+            except:
+                pass
+        finally:
+            queue.task_done()
 
-# The main logic for processing each file (formerly auto_rename_files handler)
-async def process_auto_rename_files(client, message):
+
+async def safe_download_media(client, message, file_name, status_msg=None):
+    """
+    Download media safely with FileReferenceExpired handling
+    and proper progress bar using status_msg
+    """
+    while True:
+        try:
+            progress_args = None
+            if status_msg:
+                progress_args = ("Downloading...", status_msg, time.time())
+
+            return await client.download_media(
+                message=message,
+                file_name=file_name,
+                progress=progress_for_pyrogram if status_msg else None,
+                progress_args=progress_args
+            )
+        except FileReferenceExpired:
+            logger.warning(f"File reference expired for message {message.id}, refreshing...")
+            message = await client.get_messages(message.chat.id, message.id)
+        except FloodWait as e:
+            logger.warning(f"FloodWait: sleeping {e.value} seconds")
+            await asyncio.sleep(e.value)
+        except Exception as e:
+            logger.error(f"Download failed: {e}")
+            raise
+
+async def process_auto_rename_files(client, message: Message):
     user_id = message.from_user.id
     format_template = await codeflixbots.get_format_template(user_id)
     if not format_template:
-        return await message.reply_text("Please set a rename format using /autorename")
+        return await message.reply_text("⚠️ Please set a rename format using /autorename")
 
-    media_type = None
-    file_id = None
-    file_name = "media"
-    file_size = 0
+    media = message.document or message.video or message.audio
+    if not media:
+        return await message.reply_text("❌ Unsupported file type")
 
-    if message.document:
-        file_id = message.document.file_id
-        file_name = message.document.file_name or "document"
-        file_size = message.document.file_size
-        media_type = "document"
-    elif message.video:
-        file_id = message.video.file_id
-        file_name = message.video.file_name or "video"
-        file_size = message.video.file_size
-        media_type = "video"
-    elif message.audio:
-        file_id = message.audio.file_id
-        file_name = message.audio.file_name or "audio"
-        file_size = message.audio.file_size
-        media_type = "audio"
-    else:
-        return await message.reply_text("Unsupported file type")
+    original_file_name = getattr(media, 'file_name', 'Unknown.file')
+    ext = os.path.splitext(original_file_name)[1] or '.mkv'
 
-    if await check_anti_nsfw(file_name, message):
-        return await message.reply_text("NSFW content detected")
+    if await check_anti_nsfw(original_file_name, message):
+        return await message.reply_text("🚫 NSFW content detected and blocked.")
 
+    file_id = media.file_id
     if file_id in renaming_operations and (datetime.now() - renaming_operations[file_id]).seconds < 10:
-        return
+        return await message.reply_text("⏳ This file is already being processed.")
+
     renaming_operations[file_id] = datetime.now()
 
-    download_path = metadata_path = file_path = thumb_path = None
+    download_path = metadata_path = thumb_path = None
+    status_msg = await message.reply_text("⬇️ **Downloading... 0%**")  # Initial message
 
     try:
-        ext = os.path.splitext(file_name)[1] or '.mp4'
-        new_filename = f"temp{ext}"
-        download_path = f"downloads/{new_filename}"
-
         os.makedirs("downloads", exist_ok=True)
-        msg = await message.reply_text("**Downloading...**")
-
-        file_path = await client.download_media(
-            message,
-            file_name=download_path,
-            progress=progress_for_pyrogram,
-            progress_args=("Downloading...", msg, time.time())
+        os.makedirs("metadata", exist_ok=True)
+        os.makedirs("thumbs", exist_ok=True)
+        temp_download = f"downloads/{user_id}_{int(time.time())}{ext}"
+        file_path = await safe_download_media(
+            client=client,
+            message=message,
+            file_name=temp_download,
+            status_msg=status_msg  # ← This enables progress updates
         )
+        if not file_path:
+            raise Exception("Download failed")
 
-        season, episode = extract_season_episode(file_name)
+        await status_msg.edit_text("🔍 **Analyzing filename & quality...**")
+
+        season, episode = extract_season_episode(original_file_name)
         quality = await get_media_quality(file_path)
 
+        # Safe defaults
+        detected_season = season or 1
+        detected_episode = episode or 1
+
         replacements = {
-            '{season}': season or '1',
-            '{episode}': episode or '01',
-            '{quality}': quality,
-            'Season': season or '1',
-            'Episode': episode or '01',
-            'QUALITY': quality
+            '{season}': str(detected_season),
+            '{episode}': str(detected_episode).zfill(2),
+            '{quality}': str(quality or 'Unknown'),
         }
 
+        new_name_base = format_template
         for placeholder, value in replacements.items():
-            format_template = format_template.replace(placeholder, value)
+            new_name_base = new_name_base.replace(placeholder, value)
 
-        new_filename = f"{format_template}{ext}"
-        metadata_path = f"metadata/{new_filename}"
-        os.makedirs("metadata", exist_ok=True)
+        final_filename = f"{new_name_base}{ext}"
+        metadata_path = f"metadata/{final_filename}"
 
-        await msg.edit("**Processing metadata...**")
+        await status_msg.edit_text("🖊️ **Applying metadata...**")
         await add_metadata(file_path, metadata_path, user_id)
         file_path = metadata_path
 
-        caption = await codeflixbots.get_caption(message.chat.id) or f"**{new_filename}**"
-        thumb = await codeflixbots.get_thumbnail(message.chat.id)
-        thumb_path = None
+        caption = await codeflixbots.get_caption(user_id) or f"**{final_filename}**"
 
-        if thumb:
-            thumb_path = await client.download_media(thumb)
-        elif media_type == "video" and getattr(message.video, 'thumbs', None):
-            thumb_path = await client.download_media(message.video.thumbs[0].file_id)
+        # Thumbnail
+        custom_thumb = await codeflixbots.get_thumbnail(user_id)
+        if custom_thumb:
+            thumb_path = await safe_download_media(client, custom_thumb, f"thumbs/custom_{user_id}.jpg")
+        elif message.video and getattr(message.video, 'thumbs', None):
+            thumb_path = await safe_download_media(client, message.video.thumbs[0], f"thumbs/temp_{user_id}.jpg")
         thumb_path = await process_thumbnail(thumb_path)
 
-        await msg.edit("**Uploading...**")
-        upload_args = {
+        await status_msg.edit_text("⬆️ **Uploading... 0%**")
+
+        # UPLOAD WITH PROGRESS BAR (same style)
+        upload_kwargs = {
             "caption": caption,
             "thumb": thumb_path,
             "progress": progress_for_pyrogram,
-            "progress_args": ("Uploading...", msg, time.time())
+            "progress_args": ("Uploading...", status_msg, time.time())
         }
 
-        if media_type == "video":
-            await client.send_video(message.chat.id, file_path, duration=getattr(message.video, 'duration', 0), **upload_args)
-        elif media_type == "audio":
-            await client.send_audio(message.chat.id, file_path, **upload_args)
+        if message.video:
+            await client.send_video(message.chat.id, file_path, **upload_kwargs)
+        elif message.audio:
+            await client.send_audio(message.chat.id, file_path, **upload_kwargs)
         else:
-            await client.send_document(message.chat.id, file_path, **upload_args)
+            await client.send_document(message.chat.id, file_path, **upload_kwargs)
 
-        await msg.delete()
+        await status_msg.delete()
 
     except Exception as e:
-        logger.error(f"Processing error: {e}")
-        await message.reply_text(f"Error: {str(e)}")
+        logger.error(f"Processing failed for user {user_id}: {e}", exc_info=True)
+        error_msg = str(e)
+        if "FILE_REFERENCE_EXPIRED" in error_msg:
+            error_msg = "File is too old/forwarded. Please send again."
+        try:
+            await status_msg.edit_text(f"❌ **Error:** `{error_msg}`")
+        except:
+            await message.reply_text(f"❌ **Error:** `{error_msg}`")
 
     finally:
         await cleanup_files(download_path, metadata_path, thumb_path)
         renaming_operations.pop(file_id, None)
 
-# The new handler: puts messages in the user's queue and responds with queue info
+# Queue handler
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def queue_auto_rename_files(client, message):
     user_id = message.from_user.id
@@ -353,7 +357,5 @@ async def queue_auto_rename_files(client, message):
     queue = user_queues[user_id]['queue']
     await queue.put((message, client))
     position = queue.qsize()
-    if position == 1:
-        await message.reply_text("No files in queue, starting download!")
-    else:
-        await message.reply_text(f"File added to queue. Position no. {position}")
+    text = "Starting processing now!" if position == 1 else f"Added to queue. Position: **{position}**"
+    await message.reply_text(text)
