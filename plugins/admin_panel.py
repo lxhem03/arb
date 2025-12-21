@@ -3,30 +3,46 @@ from helper.database import codeflixbots
 from pyrogram.types import Message
 from pyrogram import Client, filters
 from pyrogram.errors import FloodWait, InputUserDeactivated, UserIsBlocked, PeerIdInvalid
-import os, sys, time, asyncio, logging, datetime
+import os
+import sys
+import time
+import asyncio
+import logging
+import datetime
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 ADMIN_USER_ID = Config.ADMIN
 
-# Flag to indicate if the bot is restarting
+# Flag to prevent multiple restarts
 is_restarting = False
 
 @Client.on_message(filters.private & filters.command("restart") & filters.user(ADMIN_USER_ID))
-async def restart_bot(b, m):
+async def restart_bot(client: Client, message: Message):
     global is_restarting
-    if not is_restarting:
-        is_restarting = True
-        await m.reply_text("**Restarting.....**")
 
-        # Gracefully stop the bot's event loop
-        b.stop()
-        time.sleep(2)  # Adjust the delay duration based on your bot's shutdown time
+    if is_restarting:
+        return await message.reply_text("**Bot is already restarting...**")
 
-        # Restart the bot process
+    is_restarting = True
+    await message.reply_text("**Restarting bot... Please wait.**")
+
+    try:
+        # Gracefully stop the bot
+        await client.stop()  # ← This was the fix: await here!
+
+        # Small delay to ensure everything is cleaned up
+        await asyncio.sleep(2)
+
+        # Restart the process
+        logger.info("Bot is restarting...")
         os.execl(sys.executable, sys.executable, *sys.argv)
 
+    except Exception as e:
+        logger.error(f"Error during restart: {e}")
+        is_restarting = False
+        await message.reply_text(f"**Restart failed: {e}**")
 
 @Client.on_message(filters.private & filters.command("tutorial"))
 async def tutorial(bot: Client, message: Message):
