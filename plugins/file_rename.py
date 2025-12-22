@@ -1,4 +1,4 @@
-#fv1-6
+#fv1-7
 import os, re, time, shutil, asyncio, json, logging
 from datetime import datetime
 from PIL import Image
@@ -212,10 +212,10 @@ async def user_queue_worker(user_id):
 
 async def safe_download_media(client, message, file_name, status_msg=None):
     """
-    Download media safely with FileReferenceExpired handling
-    and proper progress bar using status_msg
+    Download media safely with retries for FileReferenceExpired and FloodWait
     """
-    while True:
+    max_retries = 5
+    for attempt in range(max_retries):
         try:
             progress_args = None
             if status_msg:
@@ -228,14 +228,22 @@ async def safe_download_media(client, message, file_name, status_msg=None):
                 progress_args=progress_args
             )
         except FileReferenceExpired:
-            logger.warning(f"File reference expired for message {message.id}, refreshing...")
+            logger.warning(f"FileReferenceExpired on attempt {attempt+1}/{max_retries} for message {message.id}")
+            if attempt == max_retries - 1:
+                raise
             message = await client.get_messages(message.chat.id, message.id)
+            await asyncio.sleep(1)
         except FloodWait as e:
-            logger.warning(f"FloodWait: sleeping {e.value} seconds")
+            logger.warning(f"FloodWait: waiting {e.value} seconds (attempt {attempt+1})")
             await asyncio.sleep(e.value)
         except Exception as e:
-            logger.error(f"Download failed: {e}")
-            raise
+            logger.error(f"Download error on attempt {attempt+1}: {e}")
+            if attempt == max_retries - 1:
+                raise
+            await asyncio.sleep(2)
+
+    logger.error(f"Download failed after {max_retries} attempts for message {message.id}")
+    return None
 
 async def process_auto_rename_files(client, message: Message):
     user_id = message.from_user.id
@@ -271,10 +279,10 @@ async def process_auto_rename_files(client, message: Message):
             client=client,
             message=message,
             file_name=temp_download,
-            status_msg=status_msg  # ← This enables progress updates
+            status_msg=status_msg
         )
         if not file_path:
-            raise Exception("Download failed")
+            raise Exception("Download failed after retries. File may be too old or restricted.")
 
         await status_msg.edit_text("🔍 **Analyzing filename & quality...**")
 
