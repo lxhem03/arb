@@ -1,4 +1,4 @@
-#fv1-7
+#fv1-8
 import os, re, time, shutil, asyncio, json, logging
 from datetime import datetime
 from PIL import Image
@@ -210,39 +210,56 @@ async def user_queue_worker(user_id):
             queue.task_done()
 
 
+import asyncio
+from pyrogram.errors import FileReferenceExpired, FloodWait
+import os
+
 async def safe_download_media(client, message, file_name, status_msg=None):
-    """
-    Download media safely with retries for FileReferenceExpired and FloodWait
-    """
-    max_retries = 5
-    for attempt in range(max_retries):
+    max_retries = 10
+    for attempt in range(1, max_retries + 1):
         try:
             progress_args = None
             if status_msg:
                 progress_args = ("Downloading...", status_msg, time.time())
 
-            return await client.download_media(
+            file_path = await client.download_media(
                 message=message,
                 file_name=file_name,
                 progress=progress_for_pyrogram if status_msg else None,
                 progress_args=progress_args
             )
-        except FileReferenceExpired:
-            logger.warning(f"FileReferenceExpired on attempt {attempt+1}/{max_retries} for message {message.id}")
-            if attempt == max_retries - 1:
-                raise
-            message = await client.get_messages(message.chat.id, message.id)
-            await asyncio.sleep(1)
-        except FloodWait as e:
-            logger.warning(f"FloodWait: waiting {e.value} seconds (attempt {attempt+1})")
-            await asyncio.sleep(e.value)
-        except Exception as e:
-            logger.error(f"Download error on attempt {attempt+1}: {e}")
-            if attempt == max_retries - 1:
-                raise
-            await asyncio.sleep(2)
 
-    logger.error(f"Download failed after {max_retries} attempts for message {message.id}")
+            # Critical check: if file_path exists but size is 0KB → likely failed due to FloodWait or timeout
+            if file_path and os.path.getsize(file_path) == 0:
+                logger.warning(f"Downloaded file is 0KB on attempt {attempt} — treating as failure")
+                os.remove(file_path)  # Clean up empty file
+                raise Exception("Empty file downloaded")
+
+            if file_path:
+                logger.info(f"Download successful on attempt {attempt}: {file_path}")
+                return file_path
+
+        except FileReferenceExpired:
+            logger.warning(f"FileReferenceExpired on attempt {attempt}/{max_retries} — refreshing message")
+            try:
+                message = await client.get_messages(message.chat.id, message.id)
+            except Exception as refresh_error:
+                logger.error(f"Failed to refresh message: {refresh_error}")
+                if attempt == max_retries:
+                    raise
+            await asyncio.sleep(attempt * 2)  # Exponential backoff: 2s, 4s, 6s...
+
+        except FloodWait as e:
+            logger.warning(f"FloodWait {e.value}s on attempt {attempt} — sleeping")
+            await asyncio.sleep(e.value + 5)  # Extra buffer
+
+        except Exception as e:
+            logger.error(f"Download error on attempt {attempt}: {type(e).__name__}: {e}")
+            if attempt == max_retries:
+                raise
+            await asyncio.sleep(attempt * 3)  # Longer delay on unknown errors
+
+    logger.error(f"Download permanently failed after {max_retries} attempts for message {message.id}")
     return None
 
 async def process_auto_rename_files(client, message: Message):
@@ -281,8 +298,9 @@ async def process_auto_rename_files(client, message: Message):
             file_name=temp_download,
             status_msg=status_msg
         )
-        if not file_path:
-            raise Exception("Download failed after retries. File may be too old or restricted.")
+        if not file_path or (os.path.exists(file_path) and os.path.getsize(file_path) == 0):
+            raise Exception("File could not be downloaded — it may be too old, heavily forwarded, or restricted. Please send the file directly (not forwarded).")
+                
 
         await status_msg.edit_text("🔍 **Analyzing filename & quality...**")
 
