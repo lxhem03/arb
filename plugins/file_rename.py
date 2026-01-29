@@ -194,28 +194,24 @@ async def add_metadata(input_path, output_path, user_id):
         raise RuntimeError("Metadata processing failed")
 
 # Worker
-async def user_queue_worker(user_id):
-    queue = user_queues[user_id]['queue']
-    while True:
-        message, client = await queue.get()
-        try:
-            await process_auto_rename_files(client, message)
-        except Exception as e:
-            logger.error(f"Error in worker for user {user_id}: {e}", exc_info=True)
-            try:
-                await message.reply_text(f"**Error processing file:** `{str(e)}`")
-            except:
-                pass
-        finally:
-            queue.task_done()
+async def send_log_to_channel(client: Client, log_message: str):
+    if not Config.LOG_CHANNEL:
+        logger.warning("LOG_CHANNEL not configured, skipping Telegram log send.")
+        return
+    try:
+        await client.send_message(Config.LOG_CHANNEL, log_message)
+    except (BadRequest, Forbidden, RPCError) as e:
+        logger.error(f"Failed to send log to channel {Config.LOG_CHANNEL}: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error sending log to channel: {e}")
 
+async def safe_download_media(client: Client, message: Message, file_name, status_msg=None, max_retries=10):
+    original_message_id = message.id
+    original_chat_id = message.chat.id
+    attempt = 0
+    backoff = 1.5  # Starting backoff in seconds
 
-async def safe_download_media(client, message, file_name, status_msg=None):
-    """
-    Download media safely with FileReferenceExpired handling
-    and proper progress bar using status_msg
-    """
-    while True:
+    while attempt < max_retries:
         try:
             progress_args = None
             if status_msg:
@@ -227,17 +223,57 @@ async def safe_download_media(client, message, file_name, status_msg=None):
                 progress=progress_for_pyrogram if status_msg else None,
                 progress_args=progress_args
             )
-        except FileReferenceExpired:
-            logger.warning(f"File reference expired for message {message.id}, refreshing...")
-            message = await client.get_messages(message.chat.id, message.id)
-        except FloodWait as e:
-            logger.warning(f"FloodWait: sleeping {e.value} seconds")
-            await asyncio.sleep(e.value)
+        except (FileReferenceExpired, FileReferenceEmpty, FileRefUpgradeNeeded) as fre:
+            attempt += 1
+            error_msg = f"File reference issue (attempt {attempt}/{max_retries}) for msg {original_message_id}: {fre}"
+            logger.warning(error_msg)
+            await send_log_to_channel(client, error_msg)
+            await asyncio.sleep(backoff)  # Backoff
+            backoff *= 1.5  # Increase backoff
+            try:
+                message = await client.get_messages(original_chat_id, original_message_id)
+                log_msg = f"Refreshed message {original_message_id} successfully."
+                logger.info(log_msg)
+                await send_log_to_channel(client, log_msg)
+            except FloodWait as fw:
+                wait_msg = f"FloodWait during refresh: sleeping {fw.value}s"
+                logger.warning(wait_msg)
+                await send_log_to_channel(client, wait_msg)
+                await asyncio.sleep(fw.value)
+            except (BadRequest, Forbidden, RPCError) as api_err:
+                api_msg = f"API error during message refresh: {api_err}"
+                logger.error(api_msg)
+                await send_log_to_channel(client, api_msg)
+                if attempt >= max_retries:
+                    raise
+            except Exception as refresh_e:
+                refresh_msg = f"Unexpected failure to refresh message {original_message_id}: {refresh_e}"
+                logger.error(refresh_msg)
+                await send_log_to_channel(client, refresh_msg)
+                if attempt >= max_retries:
+                    raise
+        except FloodWait as fw:
+            flood_msg = f"FloodWait: sleeping {fw.value}s"
+            logger.warning(flood_msg)
+            await send_log_to_channel(client, flood_msg)
+            await asyncio.sleep(fw.value)
+        except (BadRequest, Forbidden, RPCError) as api_err:
+            api_msg = f"API error during download: {api_err}"
+            logger.error(api_msg)
+            await send_log_to_channel(client, api_msg)
+            raise
         except Exception as e:
-            logger.error(f"Download failed: {e}")
+            unexpected_msg = f"Unexpected download error (attempt {attempt}): {e}"
+            logger.error(unexpected_msg)
+            await send_log_to_channel(client, unexpected_msg)
             raise
 
-async def process_auto_rename_files(client, message: Message):
+    final_error = f"Download failed after {max_retries} retries for message {original_message_id}. Session may need restart."
+    logger.error(final_error)
+    await send_log_to_channel(client, final_error)
+    raise RuntimeError(final_error)
+
+async def process_auto_rename_files(client: Client, message: Message):
     user_id = message.from_user.id
     format_template = await codeflixbots.get_format_template(user_id)
     if not format_template:
@@ -271,7 +307,7 @@ async def process_auto_rename_files(client, message: Message):
             client=client,
             message=message,
             file_name=temp_download,
-            status_msg=status_msg  # ← This enables progress updates
+            status_msg=status_msg
         )
         if not file_path:
             raise Exception("Download failed")
@@ -331,11 +367,29 @@ async def process_auto_rename_files(client, message: Message):
 
         await status_msg.delete()
 
+    except (FileReferenceExpired, FileReferenceEmpty, FileRefUpgradeNeeded) as fre:
+        error_msg = f"File reference expired/invalid during processing: {fre}. File may be too old/forwarded."
+        logger.error(error_msg)
+        await send_log_to_channel(client, error_msg)
+        await status_msg.edit_text(f"❌ **Error:** `{error_msg}`")
+    except FloodWait as fw:
+        flood_msg = f"FloodWait during processing: {fw.value}s"
+        logger.warning(flood_msg)
+        await send_log_to_channel(client, flood_msg)
+        await asyncio.sleep(fw.value)
+        # Optionally retry the failed step, but for simplicity, re-raise
+        raise
+    except (BadRequest, Forbidden, RPCError) as api_err:
+        api_msg = f"API error during processing: {api_err}"
+        logger.error(api_msg)
+        await send_log_to_channel(client, api_msg)
+        await status_msg.edit_text(f"❌ **Error:** `{api_msg}`")
     except Exception as e:
-        logger.error(f"Processing failed for user {user_id}: {e}", exc_info=True)
-        error_msg = str(e)
-        if "FILE_REFERENCE_EXPIRED" in error_msg:
-            error_msg = "File is too old/forwarded. Please send again."
+        error_msg = f"Processing failed for user {user_id} on file {original_file_name}: {e}"
+        logger.error(error_msg, exc_info=True)
+        await send_log_to_channel(client, error_msg)
+        if any(keyword in str(e).upper() for keyword in ["FILE_REFERENCE_EXPIRED", "FILE_REFERENCE_EMPTY", "FILEREF_UPGRADE_NEEDED"]):
+            error_msg = "File reference expired or invalid. It may be too old/heavily forwarded. Please send the file directly (not forwarded)."
         try:
             await status_msg.edit_text(f"❌ **Error:** `{error_msg}`")
         except:
@@ -345,6 +399,40 @@ async def process_auto_rename_files(client, message: Message):
         await cleanup_files(download_path, metadata_path, thumb_path)
         renaming_operations.pop(file_id, None)
 
+# Worker
+async def user_queue_worker(user_id):
+    queue = user_queues[user_id]['queue']
+    while True:
+        message, client = await queue.get()
+        try:
+            await process_auto_rename_files(client, message)
+        except (FileReferenceExpired, FileReferenceEmpty, FileRefUpgradeNeeded) as fre:
+            worker_err = f"File reference error in worker for user {user_id}: {fre}"
+            logger.error(worker_err)
+            await send_log_to_channel(client, worker_err)
+            await message.reply_text(f"**Error processing file:** `{worker_err}`")
+        except FloodWait as fw:
+            flood_msg = f"FloodWait in worker: sleeping {fw.value}s"
+            logger.warning(flood_msg)
+            await send_log_to_channel(client, flood_msg)
+            await asyncio.sleep(fw.value)
+        except (BadRequest, Forbidden, RPCError) as api_err:
+            api_msg = f"API error in worker: {api_err}"
+            logger.error(api_msg)
+            await send_log_to_channel(client, api_msg)
+            await message.reply_text(f"**Error processing file:** `{api_msg}`")
+        except Exception as e:
+            worker_err = f"Unexpected error in worker for user {user_id}: {e}"
+            logger.error(worker_err, exc_info=True)
+            await send_log_to_channel(client, worker_err)
+            try:
+                await message.reply_text(f"**Error processing file:** `{str(e)}`")
+            except:
+                pass
+        finally:
+            queue.task_done()
+            await asyncio.sleep(3) 
+            
 # Queue handler
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def queue_auto_rename_files(client, message):
