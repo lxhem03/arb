@@ -1,4 +1,4 @@
-#fv1-6
+#fv1-7
 import os, re, time, shutil, asyncio, json, logging
 from datetime import datetime
 from PIL import Image
@@ -156,42 +156,87 @@ async def process_thumbnail(thumb_path):
 async def add_metadata(input_path, output_path, user_id):
     ffmpeg = shutil.which('ffmpeg')
     if not ffmpeg:
-        raise RuntimeError("FFmpeg not found")
+        raise RuntimeError("FFmpeg not found on the system")
 
     metadata_enabled = await codeflixbots.get_metadata(user_id)
-    if not metadata_enabled:
-        cmd = [ffmpeg, '-i', input_path, '-map', '0', '-c', 'copy', '-loglevel', 'error', output_path]
-        proc = await asyncio.create_subprocess_exec(*cmd)
-        await proc.wait()
-        if proc.returncode != 0:
-            raise RuntimeError("Stream copy failed")
-        return
+    
+    cmd = [ffmpeg, '-i', input_path, '-map', '0', '-c', 'copy', '-loglevel', 'error', '-nostdin']
 
-    title = await codeflixbots.get_title(user_id)
-    author = await codeflixbots.get_author(user_id)
-    artist = await codeflixbots.get_artist(user_id)
-    video = await codeflixbots.get_video(user_id)
-    audio = await codeflixbots.get_audio(user_id)
-    subtitle = await codeflixbots.get_subtitle(user_id)
-    remove_audio = await codeflixbots.get_remove_audio_metadata(user_id)
-    remove_subtitle = await codeflixbots.get_remove_subtitle_metadata(user_id)
+    if metadata_enabled:
+        title = await codeflixbots.get_title(user_id)
+        author = await codeflixbots.get_author(user_id)
+        artist = await codeflixbots.get_artist(user_id)
+        video = await codeflixbots.get_video(user_id)
+        audio = await codeflixbots.get_audio(user_id)
+        subtitle = await codeflixbots.get_subtitle(user_id)
+        remove_audio = await codeflixbots.get_remove_audio_metadata(user_id)
+        remove_subtitle = await codeflixbots.get_remove_subtitle_metadata(user_id)
 
-    cmd = [ffmpeg, '-i', input_path, '-map', '0', '-c', 'copy']
+        if title:       cmd += ['-metadata', f'title={title}']
+        if author:      cmd += ['-metadata', f'author={author}']
+        if artist:      cmd += ['-metadata', f'artist={artist}']
+        if video:       cmd += ['-metadata:s:v', f'title={video}']
+        if audio:       cmd += ['-metadata:s:a', f'title={audio}']
+        elif remove_audio: cmd += ['-metadata:s:a', 'title=']
+        if subtitle:    cmd += ['-metadata:s:s', f'title={subtitle}']
+        elif remove_subtitle: cmd += ['-metadata:s:s', 'title=']
 
-    if title: cmd += ['-metadata', f'title={title}']
-    if author: cmd += ['-metadata', f'author={author}']
-    if artist: cmd += ['-metadata', f'artist={artist}']
-    if video: cmd += ['-metadata:s:v', f'title={video}']
-    if audio: cmd += ['-metadata:s:a', f'title={audio}']
-    elif remove_audio: cmd += ['-metadata:s:a', 'title=']
-    if subtitle: cmd += ['-metadata:s:s', f'title={subtitle}']
-    elif remove_subtitle: cmd += ['-metadata:s:s', 'title=']
+    cmd += [output_path]
 
-    cmd += ['-loglevel', 'error', output_path]
-    proc = await asyncio.create_subprocess_exec(*cmd)
-    await proc.wait()
-    if proc.returncode != 0:
-        raise RuntimeError("Metadata processing failed")
+    log_prefix = f"FFmpeg metadata for {os.path.basename(input_path)} (user {user_id}): "
+    
+    try:
+        # Start subprocess with pipes for stdout/stderr
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            stdin=asyncio.subprocess.DEVNULL  # prevent ffmpeg reading stdin
+        )
+
+        # Set timeout (adjust as needed – large files may need more)
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+        except asyncio.TimeoutError:
+            proc.terminate()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=10)
+            except asyncio.TimeoutError:
+                proc.kill()
+            err_msg = log_prefix + "FFmpeg timed out after 5 minutes – killed process. File may be too large/corrupted."
+            logger.error(err_msg)
+            await send_log_to_channel(client, err_msg)  # assuming client is accessible; see note below
+            raise RuntimeError("FFmpeg metadata processing timed out")
+
+        retcode = proc.returncode
+
+        if retcode != 0:
+            error_output = stderr.decode().strip() or stdout.decode().strip() or "No error output captured"
+            err_msg = f"{log_prefix} Failed (code {retcode}): {error_output}"
+            logger.error(err_msg)
+            await send_log_to_channel(client, err_msg)
+            raise RuntimeError(f"FFmpeg failed: {error_output}")
+
+        # Success – log minimal info
+        logger.info(log_prefix + "Success")
+        # Optional: await send_log_to_channel(client, log_prefix + "Success")  # too noisy?
+
+    except Exception as e:
+        # Fallback: plain stream copy without metadata
+        fallback_msg = f"{log_prefix} Metadata failed ({str(e)}). Falling back to plain copy."
+        logger.warning(fallback_msg)
+        await send_log_to_channel(client, fallback_msg)
+
+        fallback_cmd = [ffmpeg, '-i', input_path, '-map', '0', '-c', 'copy', '-loglevel', 'error', output_path]
+        proc_fallback = await asyncio.create_subprocess_exec(*fallback_cmd, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+        await proc_fallback.wait()
+
+        if proc_fallback.returncode != 0:
+            raise RuntimeError("Even fallback copy failed – file may be corrupted")
+
+    # If we reach here, output_path should exist
+    if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+        raise RuntimeError("Output file is missing or empty after FFmpeg")
 
 # Worker
 async def send_log_to_channel(client: Client, log_message: str):
