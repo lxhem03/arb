@@ -1,4 +1,4 @@
-#fv1-8
+#fv1-9
 import os, re, time, shutil, asyncio, json, logging
 from datetime import datetime
 from PIL import Image
@@ -214,6 +214,72 @@ import asyncio
 from pyrogram.errors import FileReferenceExpired, FloodWait
 import os
 
+async def upload_with_retry(client, chat_id, file_path, caption, thumb, status_msg):
+    max_retries = 4
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            start_time = time.time()
+            last_progress_time = start_time
+
+            async def progress(current, total):
+                nonlocal last_progress_time
+                now = time.time()
+
+                if now - last_progress_time < 3:
+                    return
+
+                last_progress_time = now
+                percent = current * 100 / total
+
+                text = f"⬆️ **Uploading...** {percent:.1f}%"
+
+                if percent >= 100:
+                    text = "📤 **Upload complete. Waiting for Telegram processing...**"
+
+                try:
+                    await status_msg.edit_text(text)
+                except:
+                    pass
+
+            upload_task = client.send_document(
+                chat_id,
+                file_path,
+                caption=caption,
+                thumb=thumb,
+                progress=progress
+            )
+
+            await asyncio.wait_for(upload_task, timeout=900)
+
+            await status_msg.delete()
+            return True
+
+        except FloodWait as e:
+            wait_time = e.value + 5
+            await status_msg.edit_text(f"⏳ **FloodWait detected. Waiting {wait_time}s...**")
+            await asyncio.sleep(wait_time)
+
+        except asyncio.TimeoutError:
+            if attempt == max_retries:
+                raise Exception("Upload timeout after multiple retries.")
+
+            await status_msg.edit_text(
+                f"⚠️ **Upload stuck. Retrying... ({attempt}/{max_retries})**"
+            )
+            await asyncio.sleep(5)
+
+        except Exception as e:
+            if attempt == max_retries:
+                raise
+
+            await status_msg.edit_text(
+                f"⚠️ **Upload failed. Retrying... ({attempt}/{max_retries})**"
+            )
+            await asyncio.sleep(5)
+
+    return False
+    
 async def safe_download_media(client, message, file_name, status_msg=None):
     max_retries = 10
     for attempt in range(1, max_retries + 1):
@@ -338,25 +404,16 @@ async def process_auto_rename_files(client, message: Message):
             thumb_path = await safe_download_media(client, message.video.thumbs[0], f"thumbs/temp_{user_id}.jpg")
         thumb_path = await process_thumbnail(thumb_path)
 
-        await status_msg.edit_text("⬆️ **Uploading... 0%**")
+        await status_msg.edit_text("⬆️ **Uploading...**")
 
-        # UPLOAD WITH PROGRESS BAR (same style)
-        upload_kwargs = {
-            "caption": caption,
-            "thumb": thumb_path,
-            "progress": progress_for_pyrogram,
-            "progress_args": ("Uploading...", status_msg, time.time())
-        }
-
-        if message.video:
-            await client.send_video(message.chat.id, file_path, **upload_kwargs)
-        elif message.audio:
-            await client.send_audio(message.chat.id, file_path, **upload_kwargs)
-        else:
-            await client.send_document(message.chat.id, file_path, **upload_kwargs)
-
-        await status_msg.delete()
-
+        await upload_with_retry(
+            client=client,
+            chat_id=message.chat.id,
+            file_path=file_path,
+            caption=caption,
+            thumb=thumb_path,
+            status_msg=status_msg
+        )
     except Exception as e:
         logger.error(f"Processing failed for user {user_id}: {e}", exc_info=True)
         error_msg = str(e)
@@ -368,7 +425,7 @@ async def process_auto_rename_files(client, message: Message):
             await message.reply_text(f"❌ **Error:** `{error_msg}`")
 
     finally:
-        await cleanup_files(download_path, metadata_path, thumb_path)
+        await cleanup_files(file_path, metadata_path, thumb_path)
         renaming_operations.pop(file_id, None)
 
 # Queue handler
