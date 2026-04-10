@@ -207,16 +207,22 @@ async def timeout_handler(client, user_id, meta_type, old_value):
         return
 
     try:
-        await client.delete_messages(chat_id=user_id, message_ids=user_states[user_id]["prompt_message_id"])
-        del user_states[user_id]
+        state = user_states.pop(user_id)
+        try:
+            await client.delete_messages(chat_id=user_id, message_ids=state["prompt_message_id"])
+        except Exception:
+            pass
 
         text, markup = await build_field_menu(user_id, meta_type)
-        await client.edit_message_text(
-            chat_id=user_id,
-            message_id=user_states[user_id]["menu_message_id"],
-            text=text,
-            reply_markup=markup
-        )
+        try:
+            await client.edit_message_text(
+                chat_id=user_id,
+                message_id=state["menu_message_id"],
+                text=text,
+                reply_markup=markup
+            )
+        except MessageNotModified:
+            pass
         await client.send_message(user_id, "**⏰ Timeout! Metadata setting cancelled.**")
     except MessageNotModified:
         pass
@@ -251,19 +257,40 @@ async def handle_metadata_input(client, message):
 
     try:
         await set_functions[meta_type](user_id, value)
-        del user_states[user_id]
 
-        await message.reply_text(f"**✅ {meta_type.capitalize()} saved successfully!**")
+        # Capture state BEFORE deleting it (avoids KeyError)
+        state = user_states.pop(user_id)
+        prompt_msg_id = state["prompt_message_id"]
+        menu_msg_id = state["menu_message_id"]
 
+        # Delete the prompt message ("Set your metadata for ...")
+        try:
+            await client.delete_messages(chat_id=user_id, message_ids=prompt_msg_id)
+        except Exception:
+            pass
+
+        # Delete the user's reply too (clean up the chat)
+        try:
+            await message.delete()
+        except Exception:
+            pass
+
+        # Update the original menu message to reflect the new value
         text, markup = await build_field_menu(user_id, meta_type)
-        await client.edit_message_text(
-            chat_id=user_id,
-            message_id=user_states[user_id]["menu_message_id"],
-            text=text,
-            reply_markup=markup
-        )
+        try:
+            await client.edit_message_text(
+                chat_id=user_id,
+                message_id=menu_msg_id,
+                text=text,
+                reply_markup=markup
+            )
+        except MessageNotModified:
+            pass
+
+        await client.send_message(user_id, f"**✅ {meta_type.capitalize()} saved successfully!**")
+
     except MessageNotModified:
-        pass  # Rare, but safe
+        pass  # Safe to ignore
     except Exception as e:
         logger.error(f"Error saving {meta_type} for user {user_id}: {e}", exc_info=True)
         await message.reply_text("**❌ Failed to save metadata. Try again.**")
