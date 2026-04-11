@@ -15,19 +15,20 @@ class Config(object):
     DB_URL  = os.environ.get("DB_URL","")
     PORT = os.environ.get("PORT", "8080")
  
+    # upstream update config
+    UPSTREAM_REPO   = os.environ.get("UPSTREAM_REPO", "")
+    UPSTREAM_BRANCH = os.environ.get("UPSTREAM_BRANCH", "main")
+
     # other configs
     BOT_UPTIME  = time.time()
     START_PIC   = os.environ.get("START_PIC", "https://graph.org/file/29a3acbbab9de5f45a5fe.jpg")
     ADMIN       = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMIN', '7465574522').split()]
     FORCE_SUB_CHANNELS = os.environ.get('FORCE_SUB_CHANNELS', 'The_TGguy').split(',')
-    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002288135729"))
-    DUMP_CHANNEL = int(os.environ.get("DUMP_CHANNEL", "-1003974535584"))
+    LOG_CHANNEL  = int(os.environ.get("LOG_CHANNEL",  "-1002288135729"))
+    DUMP_CHANNEL = int(os.environ.get("DUMP_CHANNEL", "0"))   # 0 = disabled
     
     # wes response configuration     
     WEBHOOK = bool(os.environ.get("WEBHOOK", "True"))
-    
-    UPSTREAM_REPO   = "https://github.com/lxhem03/arb"       # e.g. https://github.com/yourname/yourrepo.git
-    UPSTREAM_BRANCH = "lxhem03-patch-1"
 
 
 class Txt(object):
