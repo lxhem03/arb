@@ -9,7 +9,7 @@ class Database:
     def __init__(self, uri, database_name):
         try:
             self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
-            self._client.server_info()  # Test connection
+            self._client.server_info()
             logging.info("Successfully connected to MongoDB")
         except Exception as e:
             logging.error(f"Failed to connect to MongoDB: {e}")
@@ -23,18 +23,20 @@ class Database:
             join_date=datetime.date.today().isoformat(),
             file_id=None,
             caption=None,
-            metadata=False,  # Now consistently boolean
+            metadata=False,
             metadata_code=None,
             format_template=None,
+            media_type="media",         # upload type: "media" | "document"
+            rename_mode="filename",     # source mode: "filename" | "caption" | "both"
+            dump_channel=None,
             ban_status=dict(
                 is_banned=False,
                 ban_duration=0,
                 banned_on=datetime.date.max.isoformat(),
                 ban_reason=''
             ),
-            # New fields for removing metadata
             remove_audio_metadata=False,
-            remove_subtitle_metadata=False
+            remove_subtitle_metadata=False,
         )
 
     async def add_user(self, b, m):
@@ -57,8 +59,7 @@ class Database:
 
     async def total_users_count(self):
         try:
-            count = await self.col.count_documents({})
-            return count
+            return await self.col.count_documents({})
         except Exception as e:
             logging.error(f"Error counting users: {e}")
             return 0
@@ -76,6 +77,7 @@ class Database:
         except Exception as e:
             logging.error(f"Error deleting user {user_id}: {e}")
 
+    # ── thumbnail ─────────────────────────────────────────────────────────
     async def set_thumbnail(self, id, file_id):
         try:
             await self.col.update_one({"_id": int(id)}, {"$set": {"file_id": file_id}})
@@ -90,6 +92,7 @@ class Database:
             logging.error(f"Error getting thumbnail for user {id}: {e}")
             return None
 
+    # ── caption ───────────────────────────────────────────────────────────
     async def set_caption(self, id, caption):
         try:
             await self.col.update_one({"_id": int(id)}, {"$set": {"caption": caption}})
@@ -104,6 +107,7 @@ class Database:
             logging.error(f"Error getting caption for user {id}: {e}")
             return None
 
+    # ── format template ───────────────────────────────────────────────────
     async def set_format_template(self, id, format_template):
         try:
             await self.col.update_one({"_id": int(id)}, {"$set": {"format_template": format_template}})
@@ -118,21 +122,54 @@ class Database:
             logging.error(f"Error getting format template for user {id}: {e}")
             return None
 
-    async def set_media_preference(self, id, media_type):
+    # ── upload type (media / document) ────────────────────────────────────
+    async def set_upload_type(self, user_id, upload_type: str):
+        """upload_type: 'media' | 'document'"""
         try:
-            await self.col.update_one({"_id": int(id)}, {"$set": {"media_type": media_type}})
+            await self.col.update_one(
+                {"_id": int(user_id)},
+                {"$set": {"media_type": upload_type}}
+            )
         except Exception as e:
-            logging.error(f"Error setting media preference for user {id}: {e}")
+            logging.error(f"Error setting upload type for user {user_id}: {e}")
+
+    async def get_upload_type(self, user_id) -> str:
+        """Returns 'media' | 'document'. Defaults to 'media'."""
+        try:
+            user = await self.col.find_one({"_id": int(user_id)})
+            return (user.get("media_type") or "media") if user else "media"
+        except Exception as e:
+            logging.error(f"Error getting upload type for user {user_id}: {e}")
+            return "media"
+
+    # keep old name as alias for back-compat
+    async def set_media_preference(self, id, media_type):
+        await self.set_upload_type(id, media_type)
 
     async def get_media_preference(self, id):
-        try:
-            user = await self.col.find_one({"_id": int(id)})
-            return user.get("media_type", None) if user else None
-        except Exception as e:
-            logging.error(f"Error getting media preference for user {id}: {e}")
-            return None
+        return await self.get_upload_type(id)
 
-    # Fixed: Now consistently uses boolean
+    # ── rename mode (filename / caption / both) ───────────────────────────
+    async def set_rename_mode(self, user_id, mode: str):
+        """mode: 'filename' | 'caption' | 'both'"""
+        try:
+            await self.col.update_one(
+                {"_id": int(user_id)},
+                {"$set": {"rename_mode": mode}}
+            )
+        except Exception as e:
+            logging.error(f"Error setting rename mode for user {user_id}: {e}")
+
+    async def get_rename_mode(self, user_id) -> str:
+        """Returns 'filename' | 'caption' | 'both'. Defaults to 'filename'."""
+        try:
+            user = await self.col.find_one({"_id": int(user_id)})
+            return (user.get("rename_mode") or "filename") if user else "filename"
+        except Exception as e:
+            logging.error(f"Error getting rename mode for user {user_id}: {e}")
+            return "filename"
+
+    # ── metadata ──────────────────────────────────────────────────────────
     async def get_metadata(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
         return user.get('metadata', False) if user else False
@@ -141,7 +178,7 @@ class Database:
         value = True if str(metadata).lower() in ['on', 'true', '1'] else False
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'metadata': value}})
 
-    # Existing metadata fields
+    # ── metadata fields ───────────────────────────────────────────────────
     async def get_title(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
         return user.get('title', None) if user else None
@@ -184,7 +221,6 @@ class Database:
     async def set_video(self, user_id, video):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'video': video}})
 
-    # Delete functions
     async def delete_title(self, user_id):
         await self.col.update_one({"_id": int(user_id)}, {"$unset": {"title": ""}})
 
@@ -203,7 +239,6 @@ class Database:
     async def delete_video(self, user_id):
         await self.col.update_one({"_id": int(user_id)}, {"$unset": {"video": ""}})
 
-    # New: Remove metadata flags (only for audio and subtitle)
     async def get_remove_audio_metadata(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
         return user.get('remove_audio_metadata', False) if user else False
@@ -217,8 +252,6 @@ class Database:
 
     async def set_remove_subtitle_metadata(self, user_id, value: bool):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'remove_subtitle_metadata': value}})
-
-
 
     # ── per-user dump channel ─────────────────────────────────────────────
     async def get_dump_channel(self, user_id):
