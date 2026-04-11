@@ -219,4 +219,33 @@ class Database:
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'remove_subtitle_metadata': value}})
 
 
+
+    # ── per-user dump channel ─────────────────────────────────────────────
+    async def get_dump_channel(self, user_id):
+        try:
+            user = await self.col.find_one({'_id': int(user_id)})
+            return user.get('dump_channel', None) if user else None
+        except Exception as e:
+            logging.error(f"Error getting dump_channel for user {user_id}: {e}")
+            return None
+
+    async def set_dump_channel(self, user_id, channel_id):
+        try:
+            await self.col.update_one(
+                {'_id': int(user_id)},
+                {'$set': {'dump_channel': int(channel_id)}}
+            )
+        except Exception as e:
+            logging.error(f"Error setting dump_channel for user {user_id}: {e}")
+
+    async def remove_dump_channel(self, user_id):
+        try:
+            await self.col.update_one(
+                {'_id': int(user_id)},
+                {'$unset': {'dump_channel': ''}}
+            )
+        except Exception as e:
+            logging.error(f"Error removing dump_channel for user {user_id}: {e}")
+
+
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
