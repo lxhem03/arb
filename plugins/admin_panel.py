@@ -115,104 +115,209 @@ async def send_msg(user_id, message):
 
 
 # ══════════════════════════ /update ══════════════════════════════════════════
+import re as _re
+import urllib.request as _urllib_request
+import zipfile as _zipfile
+import shutil as _shutil
+import json as _json
+
+def _parse_github_repo(repo_url: str):
+    """
+    Accepts any of:
+      https://github.com/owner/repo
+      https://github.com/owner/repo.git
+      github.com/owner/repo
+    Returns (owner, repo_name) or raises ValueError.
+    """
+    match = _re.search(r'github\.com[/:]([^/]+)/([^/\s]+?)(?:\.git)?$', repo_url.strip())
+    if not match:
+        raise ValueError(f"Cannot parse GitHub URL: {repo_url!r}")
+    return match.group(1), match.group(2)
+
+
+async def _run(cmd: list, env: dict = None):
+    """Run a subprocess, return (returncode, stdout, stderr)."""
+    import subprocess
+    full_env = os.environ.copy()
+    if env:
+        full_env.update(env)
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=full_env
+    )
+    stdout, stderr = await proc.communicate()
+    return proc.returncode, stdout.decode().strip(), stderr.decode().strip()
+
+
 @Client.on_message(filters.private & filters.command("update") & filters.user(ADMIN_USER_ID))
 async def update_bot(client: Client, message: Message):
     """
-    Pull latest commits from UPSTREAM_REPO / UPSTREAM_BRANCH and restart the bot.
-    """
-    repo   = Config.UPSTREAM_REPO
-    branch = Config.UPSTREAM_BRANCH
+    Download the latest code from UPSTREAM_REPO / UPSTREAM_BRANCH via
+    GitHub's zip archive API (no git auth / credentials needed — works on
+    Heroku Docker where git HTTPS always fails without a credential store).
 
-    if not repo:
+    Flow:
+      1. Hit GitHub API → get latest commit SHA on the branch
+      2. Compare with local HEAD SHA (if available) to detect changes
+      3. Download branch zip → extract → overwrite local files
+      4. pip install -r requirements.txt
+      5. os.execl restart
+    """
+    repo_url = Config.UPSTREAM_REPO
+    branch   = Config.UPSTREAM_BRANCH
+
+    if not repo_url:
         return await message.reply_text(
             "❌ **`UPSTREAM_REPO` is not set in config.**\n"
             "Add it to your environment variables and restart."
         )
 
+    try:
+        owner, repo_name = _parse_github_repo(repo_url)
+    except ValueError as e:
+        return await message.reply_text(f"❌ **Invalid repo URL:**\n`{e}`")
+
     status = await message.reply_text(
-        f"🔄 **Checking for updates...**\n`{repo}` → `{branch}`"
+        f"🔄 **Checking for updates...**\n"
+        f"`{owner}/{repo_name}` → `{branch}`"
     )
 
-    # ── 1. set / update the upstream remote ───────────────────────────────
-    set_remote = await asyncio.create_subprocess_exec(
-        "git", "remote", "set-url", "upstream", repo,
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    _, err = await set_remote.communicate()
-    if set_remote.returncode != 0:
-        # Remote may not exist yet — add it
-        add_remote = await asyncio.create_subprocess_exec(
-            "git", "remote", "add", "upstream", repo,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        _, err = await add_remote.communicate()
-        if add_remote.returncode != 0:
-            return await status.edit_text(
-                f"❌ **Failed to set upstream remote:**\n`{err.decode().strip()}`"
+    # ── 1. get latest commit SHA from GitHub API (no auth for public repos) ──
+    api_url = f"https://api.github.com/repos/{owner}/{repo_name}/commits/{branch}"
+    try:
+        def _fetch_sha():
+            req = _urllib_request.Request(
+                api_url,
+                headers={"Accept": "application/vnd.github.v3+json",
+                         "User-Agent": "TelegramBot-Updater"}
             )
+            with _urllib_request.urlopen(req, timeout=15) as resp:
+                data = _json.loads(resp.read())
+            return data["sha"], data["commit"]["message"].splitlines()[0]
 
-    # ── 2. fetch from upstream ────────────────────────────────────────────
-    fetch_proc = await asyncio.create_subprocess_exec(
-        "git", "fetch", "upstream",
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    _, fetch_err = await fetch_proc.communicate()
-    if fetch_proc.returncode != 0:
+        loop = asyncio.get_event_loop()
+        remote_sha, commit_msg = await loop.run_in_executor(None, _fetch_sha)
+    except Exception as e:
         return await status.edit_text(
-            f"❌ **git fetch failed:**\n`{fetch_err.decode().strip()}`"
+            f"❌ **Failed to reach GitHub API:**\n`{e}`\n\n"
+            f"Make sure `{owner}/{repo_name}` is a public repository."
         )
 
-    # ── 3. check how many commits we are behind ───────────────────────────
-    log_proc = await asyncio.create_subprocess_exec(
-        "git", "log", f"HEAD..upstream/{branch}", "--oneline",
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    log_out, _ = await log_proc.communicate()
-    commits_behind = log_out.decode().strip()
+    # ── 2. compare with local HEAD (best-effort; skipped if not a git repo) ──
+    rc, local_sha, _ = await _run(["git", "rev-parse", "HEAD"])
+    if rc == 0 and local_sha and local_sha == remote_sha:
+        return await status.edit_text(
+            f"✅ **Already up to date.**\n"
+            f"Local HEAD matches remote `{remote_sha[:7]}`."
+        )
 
-    if not commits_behind:
-        return await status.edit_text("✅ **Bot is already up to date. No new commits.**")
-
-    commit_lines   = commits_behind.splitlines()
-    commit_count   = len(commit_lines)
-    commit_preview = "\n".join(f"• `{c}`" for c in commit_lines[:10])
-    if commit_count > 10:
-        commit_preview += f"\n_...and {commit_count - 10} more_"
-
+    short_sha = remote_sha[:7]
     await status.edit_text(
-        f"📦 **{commit_count} new commit(s) found:**\n\n{commit_preview}\n\n"
-        f"⬇️ **Pulling changes from `{branch}`...**"
+        f"📦 **New commit found:** `{short_sha}` — _{commit_msg}_\n\n"
+        f"⬇️ **Downloading `{branch}` from GitHub...**"
     )
 
-    # ── 4. merge upstream into current HEAD ───────────────────────────────
-    pull_proc = await asyncio.create_subprocess_exec(
-        "git", "pull", "upstream", branch,
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    pull_out, pull_err = await pull_proc.communicate()
-    pull_text = pull_out.decode().strip() or pull_err.decode().strip()
+    # ── 3. download branch zip ────────────────────────────────────────────
+    zip_url  = f"https://github.com/{owner}/{repo_name}/archive/refs/heads/{branch}.zip"
+    zip_path = f"/tmp/update_{branch}.zip"
+    extract_dir = f"/tmp/update_extract_{branch}"
 
-    if pull_proc.returncode != 0:
-        return await status.edit_text(
-            f"❌ **git pull failed:**\n`{pull_text}`"
+    try:
+        def _download_zip():
+            req = _urllib_request.Request(
+                zip_url,
+                headers={"User-Agent": "TelegramBot-Updater"}
+            )
+            with _urllib_request.urlopen(req, timeout=60) as resp, \
+                 open(zip_path, "wb") as f:
+                _shutil.copyfileobj(resp, f)
+
+        await loop.run_in_executor(None, _download_zip)
+    except Exception as e:
+        return await status.edit_text(f"❌ **Download failed:**\n`{e}`")
+
+    # ── 4. extract and overwrite local files ─────────────────────────────
+    await status.edit_text("📂 **Extracting and applying update...**")
+    try:
+        if os.path.exists(extract_dir):
+            _shutil.rmtree(extract_dir)
+
+        with _zipfile.ZipFile(zip_path, 'r') as zf:
+            zf.extractall(extract_dir)
+
+        # GitHub zips always have a top-level folder like "repo-branch/"
+        extracted_root = os.path.join(
+            extract_dir,
+            f"{repo_name}-{branch}"
         )
+        if not os.path.isdir(extracted_root):
+            # Fallback: find the first subdirectory
+            subdirs = [
+                d for d in os.listdir(extract_dir)
+                if os.path.isdir(os.path.join(extract_dir, d))
+            ]
+            if not subdirs:
+                raise RuntimeError("Zip structure unexpected — no subdirectory found.")
+            extracted_root = os.path.join(extract_dir, subdirs[0])
+
+        bot_root = os.path.dirname(os.path.abspath(__file__))   # plugins/
+        bot_root = os.path.dirname(bot_root)                     # project root
+
+        # Copy every file from the zip, skipping .git and session files
+        skip_exts    = {".session", ".session-journal"}
+        skip_dirs    = {".git", "__pycache__"}
+        files_copied = 0
+
+        for dirpath, dirnames, filenames in os.walk(extracted_root):
+            # Prune unwanted directories in-place
+            dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+
+            rel_dir = os.path.relpath(dirpath, extracted_root)
+            dest_dir = os.path.join(bot_root, rel_dir) if rel_dir != "." else bot_root
+            os.makedirs(dest_dir, exist_ok=True)
+
+            for fname in filenames:
+                if any(fname.endswith(ext) for ext in skip_exts):
+                    continue
+                src  = os.path.join(dirpath, fname)
+                dest = os.path.join(dest_dir, fname)
+                _shutil.copy2(src, dest)
+                files_copied += 1
+
+    except Exception as e:
+        return await status.edit_text(f"❌ **Extraction/copy failed:**\n`{e}`")
+    finally:
+        # Clean up temp files regardless
+        for path in (zip_path, extract_dir):
+            try:
+                if os.path.isdir(path):
+                    _shutil.rmtree(path)
+                elif os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                pass
 
     # ── 5. install any new/changed dependencies ───────────────────────────
-    await status.edit_text("📦 **Installing/updating dependencies...**")
-    pip_proc = await asyncio.create_subprocess_exec(
-        sys.executable, "-m", "pip", "install", "-r", "requirements.txt",
-        "--quiet", "--break-system-packages",
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    await status.edit_text(
+        f"✅ **{files_copied} file(s) updated** from `{short_sha}`.\n"
+        f"📦 **Installing dependencies...**"
     )
-    _, pip_err = await pip_proc.communicate()
-    if pip_proc.returncode != 0:
-        logger.warning(f"pip install warning: {pip_err.decode().strip()}")
+    rc, _, pip_err = await _run([
+        sys.executable, "-m", "pip", "install", "-r", "requirements.txt",
+        "--quiet", "--break-system-packages"
+    ])
+    if rc != 0:
+        logger.warning(f"pip install warning: {pip_err}")
 
     # ── 6. restart ────────────────────────────────────────────────────────
     await status.edit_text(
-        f"✅ **Update successful!** Pulled {commit_count} commit(s) from `{branch}`.\n"
+        f"🎉 **Update complete!**\n"
+        f"• Commit: `{short_sha}` — _{commit_msg}_\n"
+        f"• Files updated: `{files_copied}`\n\n"
         f"🔁 **Restarting bot...**"
     )
     await asyncio.sleep(1)
-    logger.info("Restarting after update...")
+    logger.info(f"Restarting after update to {short_sha}...")
     os.execl(sys.executable, sys.executable, *sys.argv)
