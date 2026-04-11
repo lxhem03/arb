@@ -694,11 +694,11 @@ async def process_auto_rename_files(client, message: Message,
 
         user_dump   = await codeflixbots.get_dump_channel(user_id)
         global_dump = Config.DUMP_CHANNEL if Config.DUMP_CHANNEL else None
-        primary_chat = user_dump if user_dump else message.chat.id
 
+        # Always send the file to the user's PM first
         sent_msg = await upload_with_retry(
             client=client,
-            chat_id=primary_chat,
+            chat_id=message.chat.id,
             file_path=metadata_path,
             caption=caption,
             thumb=thumb_path,
@@ -709,20 +709,28 @@ async def process_auto_rename_files(client, message: Message,
         )
 
         if sent_msg:
-            if global_dump and global_dump != primary_chat:
+            # Forward to user's personal dump channel (if set)
+            if user_dump:
+                try:
+                    await sent_msg.copy(user_dump)
+                    await client.send_message(
+                        message.chat.id,
+                        "✅ **File renamed and also forwarded to your dump channel!**"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to copy to user dump {user_dump}: {e}")
+                    await client.send_message(
+                        message.chat.id,
+                        f"⚠️ **Could not forward to your dump channel:** `{e}`\n"
+                        "Make sure the bot is still an admin there."
+                    )
+
+            # Forward to global dump channel (if configured and different from user's dump)
+            if global_dump and global_dump != user_dump:
                 try:
                     await sent_msg.copy(global_dump)
                 except Exception as e:
                     logger.warning(f"Failed to copy to global dump {global_dump}: {e}")
-
-            if user_dump:
-                try:
-                    await client.send_message(
-                        message.chat.id,
-                        "✅ **File renamed and sent to your dump channel!**"
-                    )
-                except Exception:
-                    pass
 
     except asyncio.CancelledError:
         logger.info(f"Task cancelled for user {user_id}")
