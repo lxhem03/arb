@@ -211,7 +211,7 @@ async def upload_with_retry(client, chat_id, file_path, caption,
                 except Exception:
                     pass
 
-            await asyncio.wait_for(
+            sent_msg = await asyncio.wait_for(
                 client.send_document(
                     chat_id, file_path,
                     caption=caption, thumb=thumb, progress=progress
@@ -222,7 +222,7 @@ async def upload_with_retry(client, chat_id, file_path, caption,
                 await status_msg.delete()
             except Exception:
                 pass
-            return True
+            return sent_msg
 
         except FloodWait as e:
             await asyncio.sleep(e.value + 5)
@@ -377,7 +377,7 @@ async def process_auto_rename_files(client, message: Message,
             "⬆️ **Uploading...**",
             reply_markup=_cancel_button(user_id)
         )
-        await upload_with_retry(
+        sent_msg = await upload_with_retry(
             client=client,
             chat_id=message.chat.id,
             file_path=metadata_path,
@@ -386,6 +386,32 @@ async def process_auto_rename_files(client, message: Message,
             status_msg=status_msg,
             cancel_event=cancel_event
         )
+
+        # ── dump forwarding ───────────────────────────────────────────────
+        if sent_msg:
+            user_dump    = await codeflixbots.get_dump_channel(user_id)
+            global_dump  = Config.DUMP_CHANNEL if Config.DUMP_CHANNEL else None
+            dump_targets = []
+
+            if user_dump:
+                dump_targets.append(("user", user_dump))
+            if global_dump and global_dump != message.chat.id:
+                dump_targets.append(("global", global_dump))
+
+            for dump_type, dump_id in dump_targets:
+                try:
+                    await sent_msg.copy(dump_id)
+                except Exception as e:
+                    logger.warning(f"Failed to copy to {dump_type} dump {dump_id}: {e}")
+
+            if user_dump:
+                try:
+                    await client.send_message(
+                        user_id,
+                        f"✅ **File renamed successfully and also sent to your dump channel!**"
+                    )
+                except Exception:
+                    pass
 
     except asyncio.CancelledError:
         logger.info(f"Task cancelled for user {user_id}")
