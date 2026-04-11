@@ -25,6 +25,9 @@ class Config(object):
     
     # wes response configuration     
     WEBHOOK = bool(os.environ.get("WEBHOOK", "True"))
+    
+    UPSTREAM_REPO   = "https://github.com/lxhem03/arb"       # e.g. https://github.com/yourname/yourrepo.git
+    UPSTREAM_BRANCH = "lxhem03-patch-1"
 
 
 class Txt(object):
