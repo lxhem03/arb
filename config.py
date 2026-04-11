@@ -8,7 +8,7 @@ class Config(object):
     API_ID       = os.environ.get("API_ID", "")
     API_HASH     = os.environ.get("API_HASH", "")
     BOT_TOKEN    = os.environ.get("BOT_TOKEN", "")
-    SESSION_NAME = os.environ.get("SESSION_NAME", "codeflixbots")
+    SESSION_NAME = os.environ.get("SESSION_NAME", "corkg")
 
     # database config
     DB_NAME = os.environ.get("DB_NAME","")     
@@ -16,8 +16,8 @@ class Config(object):
     PORT = os.environ.get("PORT", "8080")
  
     # upstream update config
-    UPSTREAM_REPO   = os.environ.get("UPSTREAM_REPO", "")
-    UPSTREAM_BRANCH = os.environ.get("UPSTREAM_BRANCH", "main")
+    UPSTREAM_REPO   = os.environ.get("UPSTREAM_REPO", "https://github.com/lxhem03/arb")
+    UPSTREAM_BRANCH = os.environ.get("UPSTREAM_BRANCH", "lxhem03-patch-1")
 
     # other configs
     BOT_UPTIME  = time.time()
@@ -25,7 +25,7 @@ class Config(object):
     ADMIN       = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMIN', '7465574522').split()]
     FORCE_SUB_CHANNELS = os.environ.get('FORCE_SUB_CHANNELS', 'The_TGguy').split(',')
     LOG_CHANNEL  = int(os.environ.get("LOG_CHANNEL",  "-1002288135729"))
-    DUMP_CHANNEL = int(os.environ.get("DUMP_CHANNEL", "0"))   # 0 = disabled
+    DUMP_CHANNEL = int(os.environ.get("DUMP_CHANNEL", "-1003974535584"))   # 0 = disabled
     
     # wes response configuration     
     WEBHOOK = bool(os.environ.get("WEBHOOK", "True"))
