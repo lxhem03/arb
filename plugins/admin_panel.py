@@ -112,3 +112,85 @@ async def send_msg(user_id, message):
     except Exception as e:
         logger.error(f"{user_id} : {e}")
         return 500
+
+
+# ══════════════════════════ /update ══════════════════════════════════════════
+@Client.on_message(filters.private & filters.command("update") & filters.user(ADMIN_USER_ID))
+async def update_bot(client: Client, message: Message):
+    """
+    Pull latest commits from the upstream repo and restart the bot.
+    Works when the bot is running inside Git repo (local or Docker with mounted repo).
+    """
+    status = await message.reply_text("🔄 **Checking for updates...**")
+
+    # ── 1. fetch & check for new commits ─────────────────────────────────
+    fetch_proc = await asyncio.create_subprocess_exec(
+        "git", "fetch", "origin",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    _, fetch_err = await fetch_proc.communicate()
+    if fetch_proc.returncode != 0:
+        return await status.edit_text(
+            f"❌ **git fetch failed:**\n`{fetch_err.decode().strip()}`"
+        )
+
+    # Check how many commits we are behind
+    log_proc = await asyncio.create_subprocess_exec(
+        "git", "log", "HEAD..origin/main", "--oneline",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    log_out, _ = await log_proc.communicate()
+    commits_behind = log_out.decode().strip()
+
+    if not commits_behind:
+        return await status.edit_text("✅ **Bot is already up to date. No new commits.**")
+
+    commit_lines  = commits_behind.splitlines()
+    commit_count  = len(commit_lines)
+    commit_preview = "\n".join(f"• `{c}`" for c in commit_lines[:10])
+    if commit_count > 10:
+        commit_preview += f"\n_...and {commit_count - 10} more_"
+
+    await status.edit_text(
+        f"📦 **{commit_count} new commit(s) found:**\n\n{commit_preview}\n\n"
+        f"⬇️ **Pulling changes...**"
+    )
+
+    # ── 2. pull ────────────────────────────────────────────────────────────
+    pull_proc = await asyncio.create_subprocess_exec(
+        "git", "pull", "origin", "main",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    pull_out, pull_err = await pull_proc.communicate()
+    pull_text = pull_out.decode().strip() or pull_err.decode().strip()
+
+    if pull_proc.returncode != 0:
+        return await status.edit_text(
+            f"❌ **git pull failed:**\n`{pull_text}`"
+        )
+
+    # ── 3. install any new dependencies ───────────────────────────────────
+    await status.edit_text("📦 **Installing/updating dependencies...**")
+    pip_proc = await asyncio.create_subprocess_exec(
+        sys.executable, "-m", "pip", "install", "-r", "requirements.txt",
+        "--quiet", "--break-system-packages",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    _, pip_err = await pip_proc.communicate()
+    if pip_proc.returncode != 0:
+        logger.warning(f"pip install warning: {pip_err.decode().strip()}")
+        # Non-fatal — continue to restart
+
+    # ── 4. restart ────────────────────────────────────────────────────────
+    await status.edit_text(
+        f"✅ **Update successful!** Pulled {commit_count} commit(s).\n"
+        f"🔁 **Restarting bot...**"
+    )
+    await asyncio.sleep(1)
+
+    logger.info("Restarting after update...")
+    os.execl(sys.executable, sys.executable, *sys.argv)
