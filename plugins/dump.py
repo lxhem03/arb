@@ -111,12 +111,21 @@ async def dump_callback(client: Client, query: CallbackQuery):
 
 
 # ── handle user's reply with channel id/username ─────────────────────────────
-@Client.on_message(filters.private & filters.text & ~filters.command([]))
+# Must explicitly exclude ALL commands so this handler never blocks them.
+# filters.command([]) in pyrogram 2.x matches nothing, so ~filters.command([])
+# matches EVERYTHING including /start, /settings etc. — that would block all commands.
+# Instead we check dump_states at runtime and call continue_propagation if not active.
+@Client.on_message(filters.private & filters.text, group=1)
 async def dump_input_handler(client: Client, message: Message):
     user_id = message.from_user.id
 
+    # If user is not in the middle of setting a dump channel, let other handlers run
     if user_id not in dump_states:
-        return
+        await message.continue_propagation()
+
+    # Also skip if this is a command — let the command handler deal with it
+    if message.text and message.text.startswith('/'):
+        await message.continue_propagation()
 
     state       = dump_states.pop(user_id)
     menu_msg_id = state['menu_msg_id']
