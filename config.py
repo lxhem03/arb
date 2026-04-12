@@ -8,7 +8,7 @@ class Config(object):
     API_ID       = os.environ.get("API_ID", "")
     API_HASH     = os.environ.get("API_HASH", "")
     BOT_TOKEN    = os.environ.get("BOT_TOKEN", "")
-    SESSION_NAME = os.environ.get("SESSION_NAME", "codeflixbots")
+    SESSION_NAME = os.environ.get("SESSION_NAME", "jeojd")
 
     # database config
     DB_NAME = os.environ.get("DB_NAME","")     
@@ -16,8 +16,8 @@ class Config(object):
     PORT = os.environ.get("PORT", "8080")
  
     # upstream update config
-    UPSTREAM_REPO   = os.environ.get("UPSTREAM_REPO", "")
-    UPSTREAM_BRANCH = os.environ.get("UPSTREAM_BRANCH", "main")
+    UPSTREAM_REPO   = os.environ.get("UPSTREAM_REPO", "https://github.com/lxhem03/arb")
+    UPSTREAM_BRANCH = os.environ.get("UPSTREAM_BRANCH", "lxhem03-patch-1")
 
     # other configs
     BOT_UPTIME  = time.time()
