@@ -220,6 +220,7 @@ async def analyse_streams(file_path: str) -> dict:
     """
     result = {
         'height':       None,
+        'width':        None,
         'audio_count':  0,
         'audio_langs':  [],
         'sub_langs':    [],
@@ -239,6 +240,7 @@ async def analyse_streams(file_path: str) -> dict:
             lang = tags.get("language") or tags.get("LANGUAGE") or ""
             if ct == "video" and result['height'] is None:
                 result['height']      = s.get("height")
+                result['width']       = s.get("width")
                 result['video_codec'] = s.get("codec_name")
             elif ct == "audio":
                 result['audio_count'] += 1
@@ -454,8 +456,9 @@ async def upload_with_retry(client, chat_id, file_path, caption,
                  'media'    → send_video (with width/height/duration hints)
     """
     max_retries = 4
-    height = (streams or {}).get('height') or 0
-    width  = 0   # ffprobe width not stored currently; 0 = let Telegram detect
+    # Extract width/height safely - NEVER pass None to send_video, use 0 as fallback
+    height = int((streams or {}).get('height') or 0)
+    width  = int((streams or {}).get('width')  or 0)
 
     for attempt in range(1, max_retries + 1):
         if cancel_event and cancel_event.is_set():
@@ -483,8 +486,8 @@ async def upload_with_retry(client, chat_id, file_path, caption,
                     chat_id, file_path,
                     caption=caption, thumb=thumb,
                     supports_streaming=True,
-                    height=height or None,
-                    width=width or None,
+                    height=height if height else 0,
+                    width=width if width else 0,
                     progress=progress
                 )
             else:
@@ -695,10 +698,12 @@ async def process_auto_rename_files(client, message: Message,
         user_dump   = await codeflixbots.get_dump_channel(user_id)
         global_dump = Config.DUMP_CHANNEL if Config.DUMP_CHANNEL else None
 
-        # Always send the file to the user's PM first
+        # Send file: to user_dump if set, otherwise to user's PM
+        primary_chat = user_dump if user_dump else message.chat.id
+
         sent_msg = await upload_with_retry(
             client=client,
-            chat_id=message.chat.id,
+            chat_id=primary_chat,
             file_path=metadata_path,
             caption=caption,
             thumb=thumb_path,
@@ -709,24 +714,18 @@ async def process_auto_rename_files(client, message: Message,
         )
 
         if sent_msg:
-            # Forward to user's personal dump channel (if set)
+            # If sent to user_dump, notify user in PM
             if user_dump:
                 try:
-                    await sent_msg.copy(user_dump)
                     await client.send_message(
                         message.chat.id,
-                        "✅ **File renamed and also forwarded to your dump channel!**"
+                        "✅ **File renamed and sent to your dump channel!**"
                     )
-                except Exception as e:
-                    logger.warning(f"Failed to copy to user dump {user_dump}: {e}")
-                    await client.send_message(
-                        message.chat.id,
-                        f"⚠️ **Could not forward to your dump channel:** `{e}`\n"
-                        "Make sure the bot is still an admin there."
-                    )
+                except Exception:
+                    pass
 
-            # Forward to global dump channel (if configured and different from user's dump)
-            if global_dump and global_dump != user_dump:
+            # Always forward to global DUMP_CHANNEL from config (if set and not same as primary)
+            if global_dump and global_dump != primary_chat:
                 try:
                     await sent_msg.copy(global_dump)
                 except Exception as e:
