@@ -221,6 +221,7 @@ async def analyse_streams(file_path: str) -> dict:
     result = {
         'height':       None,
         'width':        None,
+        'duration':     0,
         'audio_count':  0,
         'audio_langs':  [],
         'sub_langs':    [],
@@ -230,9 +231,19 @@ async def analyse_streams(file_path: str) -> dict:
     try:
         stdout, _ = await cmd_exec([
             "ffprobe", "-hide_banner", "-loglevel", "error",
-            "-print_format", "json", "-show_streams", file_path
+            "-print_format", "json",
+            "-show_streams", "-show_entries", "format=duration",
+            file_path
         ])
-        streams = json.loads(stdout).get("streams", [])
+        data    = json.loads(stdout)
+        streams = data.get("streams", [])
+        # Duration from format section (most reliable)
+        try:
+            result['duration'] = int(float(
+                data.get("format", {}).get("duration", 0) or 0
+            ))
+        except (ValueError, TypeError):
+            result['duration'] = 0
         seen_sub_langs = []
         for s in streams:
             ct   = s.get("codec_type", "")
@@ -242,6 +253,12 @@ async def analyse_streams(file_path: str) -> dict:
                 result['height']      = s.get("height")
                 result['width']       = s.get("width")
                 result['video_codec'] = s.get("codec_name")
+                # Fallback: duration from stream if format didn't have it
+                if not result['duration']:
+                    try:
+                        result['duration'] = int(float(s.get("duration", 0) or 0))
+                    except (ValueError, TypeError):
+                        pass
             elif ct == "audio":
                 result['audio_count'] += 1
                 result['audio_langs'].append(_resolve_lang(lang))
@@ -456,9 +473,10 @@ async def upload_with_retry(client, chat_id, file_path, caption,
                  'media'    → send_video (with width/height/duration hints)
     """
     max_retries = 4
-    # Extract width/height safely - NEVER pass None to send_video, use 0 as fallback
-    height = int((streams or {}).get('height') or 0)
-    width  = int((streams or {}).get('width')  or 0)
+    # Extract width/height/duration safely — NEVER pass None to send_video
+    height   = int((streams or {}).get('height')   or 0)
+    width    = int((streams or {}).get('width')    or 0)
+    duration = int((streams or {}).get('duration') or 0)
 
     for attempt in range(1, max_retries + 1):
         if cancel_event and cancel_event.is_set():
@@ -486,8 +504,9 @@ async def upload_with_retry(client, chat_id, file_path, caption,
                     chat_id, file_path,
                     caption=caption, thumb=thumb,
                     supports_streaming=True,
-                    height=height if height else 0,
-                    width=width if width else 0,
+                    duration=duration if duration else 0,
+                    height=height   if height   else 0,
+                    width=width     if width     else 0,
                     progress=progress
                 )
             else:
