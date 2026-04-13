@@ -21,16 +21,36 @@ renaming_operations = {}
 user_queues: dict   = {}
 
 # ══════════════════════════ SEASON / EPISODE PATTERNS ════════════════════════
-SEASON_EPISODE_PATTERNS = [
-    (re.compile(r'[Ss](\d{1,2})[Ee](\d{1,3})'),
+SEASON_EPISODE_PATTERNS += [
+
+    # S01.E02 / S01-E02
+    (re.compile(r'[Ss](\d{1,2})[.\- _]+[Ee](\d{1,3})'),
      ('season', 'episode')),
-    (re.compile(r'[Ss](\d{1,2})[._\s]+(\d{1,3})'),
+
+    # Season 1 Episode 2 (full words)
+    (re.compile(r'Season[._\s]+(\d{1,2})[._\s]+Episode[._\s]+(\d{1,3})', re.IGNORECASE),
      ('season', 'episode')),
-    (re.compile(r'(\d{1,2})(?:st|nd|rd|th)[._\s]+Season[._\s]+(\d{1,3})', re.IGNORECASE),
+
+    # S1 Ep2 (mixed short words)
+    (re.compile(r'[Ss](\d{1,2})[._\s]+[Ee]p?[._\s]?(\d{1,3})'),
      ('season', 'episode')),
-    (re.compile(r'(First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth|Tenth)'
-                r'[._\s]+Season[._\s]+(\d{1,3})', re.IGNORECASE),
-     ('season_word', 'episode')),
+
+    # Season-1_Ep-02 type messy formats
+    (re.compile(r'Season[._\-\s]*(\d{1,2})[._\-\s]*Ep(?:isode)?[._\-\s]*(\d{1,3})', re.IGNORECASE),
+     ('season', 'episode')),
+
+    # Ep only (fallback, no season)
+    (re.compile(r'[Ee]p?(?:isode)?[._\s]?(\d{1,3})'),
+     ('episode',)),
+
+    # Episode 12 (no season)
+    (re.compile(r'Episode[._\s]+(\d{1,3})', re.IGNORECASE),
+     ('episode',)),
+
+    # Absolute episode (anime style like 203)
+    (re.compile(r'\b(?:EP?|Episode)?[._\s]?(\d{2,4})\b'),
+     ('episode',)),
+
 ]
 WORD_TO_SEASON = {k.lower(): v for k, v in {
     "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5,
