@@ -43,24 +43,21 @@ SEASON_EPISODE_PATTERNS = [
     (re.compile(r'[\s._-](\d{1,2})[\s._-]+(\d{1,3})(?=\.[^.]+$)'),
      ('season', 'episode')),
 
-    # Ep only (fallback, no season)
-    (re.compile(r'[Ee]p?(?:isode)?[._\s]?(\d{1,3})'),
-     ('episode',)),
-    
-    # Only E1157, E 1156, E_1782
-    (re.compile(r'[E][\s._-]?(\d{1,4})'),
+    # Ep123, Episode 123, ep.123  (require "Ep" or "Episode", not just "e")
+    (re.compile(r'(?i)\b(?:ep|episode)[._\s-]*(\d{1,4})\b'),
      ('episode',)),
 
-    # Episode 12 (no season)
-    (re.compile(r'Episode[._\s]+(\d{1,3})', re.IGNORECASE),
+    # E123 / E 123 / E-123 / E_123  (require word boundary or separator)
+    (re.compile(r'(?i)\b[Ee][._\s-]?(\d{1,4})\b'),
      ('episode',)),
 
-    # Episode at the beginning (e.g., 001_, 003 -, 12.)
-    (re.compile(r'^(\d{2,3})(?=[._\-\s])'),
+    # Episode at the very beginning: 003_ or 12. or 001 -
+    (re.compile(r'^(\d{2,4})(?=[._\-\s])'),
      ('episode',)),
 
-    # Absolute episode (anime style like 203)
-    (re.compile(r'(?<![A-Za-z])(\d{2,4})(?![A-Za-z])'),
+    # Absolute episode numbers (anime style) - stricter version
+    # Only standalone numbers, not part of words like "me123c"
+    (re.compile(r'(?<!\w)(\d{2,4})(?!\w)'),
      ('episode',)),
 ]
 WORD_TO_SEASON = {k.lower(): v for k, v in {
