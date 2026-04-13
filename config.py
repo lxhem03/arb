@@ -8,7 +8,7 @@ class Config(object):
     API_ID       = os.environ.get("API_ID", "")
     API_HASH     = os.environ.get("API_HASH", "")
     BOT_TOKEN    = os.environ.get("BOT_TOKEN", "")
-    SESSION_NAME = os.environ.get("SESSION_NAME", "jeojd")
+    SESSION_NAME = os.environ.get("SESSION_NAME", "codeflixbots")
 
     # database config
     DB_NAME = os.environ.get("DB_NAME","")     
@@ -16,8 +16,8 @@ class Config(object):
     PORT = os.environ.get("PORT", "8080")
  
     # upstream update config
-    UPSTREAM_REPO   = os.environ.get("UPSTREAM_REPO", "https://github.com/lxhem03/arb")
-    UPSTREAM_BRANCH = os.environ.get("UPSTREAM_BRANCH", "lxhem03-patch-1")
+    UPSTREAM_REPO   = os.environ.get("UPSTREAM_REPO", "")
+    UPSTREAM_BRANCH = os.environ.get("UPSTREAM_BRANCH", "main")
 
     # other configs
     BOT_UPTIME  = time.time()
@@ -33,61 +33,89 @@ class Config(object):
 
 class Txt(object):
     # part of text configuration
-        
-    START_TXT = """<b>ʜᴇʏ! {}  
 
-» ɪ ᴀᴍ ᴀᴅᴠᴀɴᴄᴇᴅ ʀᴇɴᴀᴍᴇ ʙᴏᴛ! ᴡʜɪᴄʜ ᴄᴀɴ ᴀᴜᴛᴏʀᴇɴᴀᴍᴇ ʏᴏᴜʀ ғɪʟᴇs ᴡɪᴛʜ ᴄᴜsᴛᴏᴍ ᴄᴀᴘᴛɪᴏɴ ᴀɴᴅ ᴛʜᴜᴍʙɴᴀɪʟ ᴀɴᴅ ᴀʟsᴏ sᴇǫᴜᴇɴᴄᴇ ᴛʜᴇᴍ ᴘᴇʀғᴇᴄᴛʟʏ</b>"""
-    
-    FILE_NAME_TXT = """<b>» <u>sᴇᴛᴜᴘ ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ</u></b>
+    START_TXT = """<b>ʜᴇʏ! {}
 
-<b>ᴠᴀʀɪᴀʙʟᴇꜱ :</b>
-➲ ᴇᴘɪꜱᴏᴅᴇ - ᴛᴏ ʀᴇᴘʟᴀᴄᴇ ᴇᴘɪꜱᴏᴅᴇ ɴᴜᴍʙᴇʀ  
-➲ ꜱᴇᴀꜱᴏɴ - ᴛᴏ ʀᴇᴘʟᴀᴄᴇ ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ  
-➲ ǫᴜᴀʟɪᴛʏ - ᴛᴏ ʀᴇᴘʟᴀᴄᴇ ǫᴜᴀʟɪᴛʏ  
+» ɪ ᴀᴍ ᴀɴ ᴀᴅᴠᴀɴᴄᴇᴅ ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ʙᴏᴛ!
 
-<b>‣ ꜰᴏʀ ᴇx:- </b> `/autorename Oᴠᴇʀғʟᴏᴡ [Sseason Eepisode] - [Dual] quality`
+✦ ʀᴇɴᴀᴍᴇ ᴡɪᴛʜ sᴍᴀʀᴛ ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs
+✦ ᴄᴜsᴛᴏᴍ ᴛʜᴜᴍʙɴᴀɪʟ & ᴄᴀᴘᴛɪᴏɴ
+✦ ᴍᴇᴛᴀᴅᴀᴛᴀ ᴇᴅɪᴛɪɴɢ ғᴏʀ ᴍᴋᴠ ғɪʟᴇs
+✦ ᴅᴜᴍᴘ ᴄʜᴀɴɴᴇʟ sᴜᴘᴘᴏʀᴛ
+✦ ǫᴜᴇᴜᴇ sʏsᴛᴇᴍ ᴡɪᴛʜ ᴄᴀɴᴄᴇʟ ʙᴜᴛᴛᴏɴ
 
-<b>‣ /Autorename: ʀᴇɴᴀᴍᴇ ʏᴏᴜʀ ᴍᴇᴅɪᴀ ꜰɪʟᴇꜱ ʙʏ ɪɴᴄʟᴜᴅɪɴɢ 'ᴇᴘɪꜱᴏᴅᴇ' ᴀɴᴅ 'ǫᴜᴀʟɪᴛʏ' ᴠᴀʀɪᴀʙʟᴇꜱ ɪɴ ʏᴏᴜʀ ᴛᴇxᴛ, ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴇᴘɪꜱᴏᴅᴇ ᴀɴᴅ ǫᴜᴀʟɪᴛʏ ᴘʀᴇꜱᴇɴᴛ ɪɴ ᴛʜᴇ ᴏʀɪɢɪɴᴀʟ ꜰɪʟᴇɴᴀᴍᴇ. """
-    
+ᴜsᴇ /help ᴛᴏ sᴇᴇ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs</b>"""
+
+    FILE_NAME_TXT = """<b>» <u>ꜱᴇᴛᴜᴘ ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ꜰᴏʀᴍᴀᴛ</u></b>
+
+<b>ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀꜱ ʏᴏᴜ ᴄᴀɴ ᴜꜱᴇ:</b>
+
+<code>{{episode}}</code>  — ᴇᴘɪꜱᴏᴅᴇ ɴᴜᴍʙᴇʀ
+<code>{{season}}</code>   — ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ
+<code>{{quality}}</code>  — ᴠɪᴅᴇᴏ ǫᴜᴀʟɪᴛʏ ꜰʀᴏᴍ ꜱᴛʀᴇᴀᴍ (ᴇɢ. 1080ᴘ)
+<code>{{resolution}}</code> — ǫᴜᴀʟɪᴛʏ ꜰʀᴏᴍ ꜰɪʟᴇɴᴀᴍᴇ
+<code>{{audio}}</code>    — Sᴜʙ / Dᴜᴀʟ / Mᴜʟᴛɪ
+<code>{{languages}}</code> — ᴀᴜᴅɪᴏ ʟᴀɴɢᴜᴀɢᴇs (ᴇɢ. Eɴɢʟɪꜱʜ, Jᴀᴘᴀɴᴇꜱᴇ)
+<code>{{subtitles}}</code> — ꜱᴜʙᴛɪᴛʟᴇ ʟᴀɴɢᴜᴀɢᴇs
+<code>{{codec}}</code>    — ᴠɪᴅᴇᴏ ᴄᴏᴅᴇᴄ (ᴇɢ. H.265, AV1)
+<code>{{filesize}}</code> — ꜰɪʟᴇ ꜱɪᴢᴇ (ᴇɢ. 2.4 Gʙ)
+
+<b>‣ ᴇxᴀᴍᴘʟᴇ:</b>
+<code>/autorename Anime Name S{{season}}E{{episode}} [{{quality}} {{audio}} {{codec}}]</code>
+
+<b>‣ ᴏᴜᴛᴘᴜᴛ:</b> <code>Anime Name S01E04 [1080p Dual H.265].mkv</code>
+
+<i>ᴛɪᴘ: ᴜꜱᴇ /settings ᴛᴏ ᴄᴏɴᴛʀᴏʟ ᴡʜᴇᴛʜᴇʀ ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs ᴀʀᴇ ʀᴇᴀᴅ ꜰʀᴏᴍ ꜰɪʟᴇɴᴀᴍᴇ, ᴄᴀᴘᴛɪᴏɴ, ᴏʀ ʙᴏᴛʜ.</i>"""
+
     ABOUT_TXT = f"""<b>❍ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/codeflix_bots">ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ</a>
 ❍ ᴅᴇᴠᴇʟᴏᴩᴇʀ : <a href="https://t.me/cosmic_freak">ʏᴀᴛᴏ</a>
 ❍ ɢɪᴛʜᴜʙ : <a href="https://github.com/cosmic_freak">ʏᴀᴛᴏ</a>
 ❍ ʟᴀɴɢᴜᴀɢᴇ : <a href="https://www.python.org/">ᴘʏᴛʜᴏɴ</a>
 ❍ ᴅᴀᴛᴀʙᴀꜱᴇ : <a href="https://www.mongodb.com/">ᴍᴏɴɢᴏ ᴅʙ</a>
-❍ ʜᴏꜱᴛᴇᴅ ᴏɴ : <a href="https://t.me/codeflix_bots">ᴠᴘs</a>
+❍ ʜᴏꜱᴛᴇᴅ ᴏɴ : <a href="https://t.me/codeflix_bots">ʜᴇʀᴏᴋᴜ</a>
 ❍ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ : <a href="https://t.me/animes_cruise">ᴀɴɪᴍᴇ ᴄʀᴜɪsᴇ</a>
 
-➻ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ɢɪᴠᴇɴ ʙᴇʟᴏᴡ ғᴏʀ ɢᴇᴛᴛɪɴɢ ʙᴀsɪᴄ ʜᴇʟᴩ ᴀɴᴅ ɪɴғᴏ ᴀʙᴏᴜᴛ ᴍᴇ.</b>"""
+➻ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ꜰᴏʀ ʜᴇʟᴘ ᴀɴᴅ ɪɴꜰᴏ ᴀʙᴏᴜᴛ ᴍᴇ.</b>"""
 
-    
-    THUMBNAIL_TXT = """<b><u>» ᴛᴏ ꜱᴇᴛ ᴄᴜꜱᴛᴏᴍ ᴛʜᴜᴍʙɴᴀɪʟ</u></b>
-    
-➲ /start: ꜱᴇɴᴅ ᴀɴʏ ᴘʜᴏᴛᴏ ᴛᴏ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ꜱᴇᴛ ɪᴛ ᴀꜱ ᴀ ᴛʜᴜᴍʙɴᴀɪʟ..
-➲ /del_thumb: ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ᴛᴏ ᴅᴇʟᴇᴛᴇ ʏᴏᴜʀ ᴏʟᴅ ᴛʜᴜᴍʙɴᴀɪʟ.
-➲ /view_thumb: ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ᴛᴏ ᴠɪᴇᴡ ʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴛʜᴜᴍʙɴᴀɪʟ.
+    THUMBNAIL_TXT = """<b><u>» ᴛʜᴜᴍʙɴᴀɪʟ ꜱᴇᴛᴛɪɴɢꜱ</u></b>
 
-ɴᴏᴛᴇ: ɪꜰ ɴᴏ ᴛʜᴜᴍʙɴᴀɪʟ ꜱᴀᴠᴇᴅ ɪɴ ʙᴏᴛ ᴛʜᴇɴ, ɪᴛ ᴡɪʟʟ ᴜꜱᴇ ᴛʜᴜᴍʙɴᴀɪʟ ᴏꜰ ᴛʜᴇ ᴏʀɪɢɪɴɪᴀʟ ꜰɪʟᴇ ᴛᴏ ꜱᴇᴛ ɪɴ ʀᴇɴᴀᴍᴇᴅ ꜰɪʟᴇ"""
+<b>ʜᴏᴡ ᴛᴏ ꜱᴇᴛ ᴀ ᴛʜᴜᴍʙɴᴀɪʟ:</b>
+➲ ꜱᴇɴᴅ ᴀ ᴘʜᴏᴛᴏ ᴛᴏ ᴛʜᴇ ʙᴏᴛ, ᴛʜᴇɴ ʀᴇᴘʟʏ ᴛᴏ ɪᴛ ᴡɪᴛʜ /setthumb
 
-    CAPTION_TXT = """<b><u>» ᴛᴏ ꜱᴇᴛ ᴄᴜꜱᴛᴏᴍ ᴄᴀᴘᴛɪᴏɴ ᴀɴᴅ ᴍᴇᴅɪᴀ ᴛʏᴘᴇ</u></b>
-    
-<b>ᴠᴀʀɪᴀʙʟᴇꜱ :</b>         
-ꜱɪᴢᴇ: {ꜰɪʟᴇꜱɪᴢᴇ}
-ᴅᴜʀᴀᴛɪᴏɴ: {duration}
-ꜰɪʟᴇɴᴀᴍᴇ: {ꜰɪʟᴇɴᴀᴍᴇ}
+<b>ᴏᴛʜᴇʀ ᴄᴏᴍᴍᴀɴᴅꜱ:</b>
+➲ /view_thumb — ᴠɪᴇᴡ ʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴛʜᴜᴍʙɴᴀɪʟ
+➲ /del_thumb  — ᴅᴇʟᴇᴛᴇ ʏᴏᴜʀ ᴛʜᴜᴍʙɴᴀɪʟ
 
-➲ /set_caption: ᴛᴏ ꜱᴇᴛ ᴀ ᴄᴜꜱᴛᴏᴍ ᴄᴀᴘᴛɪᴏɴ.
-➲ /see_caption: ᴛᴏ ᴠɪᴇᴡ ʏᴏᴜʀ ᴄᴜꜱᴛᴏᴍ ᴄᴀᴘᴛɪᴏɴ.
-➲ /del_caption: ᴛᴏ ᴅᴇʟᴇᴛᴇ ʏᴏᴜʀ ᴄᴜꜱᴛᴏᴍ ᴄᴀᴘᴛɪᴏɴ.
+<i>ɴᴏᴛᴇ: ɪꜰ ɴᴏ ᴛʜᴜᴍʙɴᴀɪʟ ɪꜱ ꜱᴀᴠᴇᴅ, ᴛʜᴇ ʙᴏᴛ ᴡɪʟʟ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴇxᴛʀᴀᴄᴛ ᴀ ꜰʀᴀᴍᴇ ꜰʀᴏᴍ ᴛʜᴇ ᴠɪᴅᴇᴏ ᴀꜱ ᴛʜᴜᴍʙɴᴀɪʟ.</i>"""
 
-» ꜰᴏʀ ᴇx:- /set_caption ꜰɪʟᴇ ɴᴀᴍᴇ: {ꜰɪʟᴇɴᴀᴍᴇ}"""
+    CAPTION_TXT = """<b><u>» ᴄᴜꜱᴛᴏᴍ ᴄᴀᴘᴛɪᴏɴ</u></b>
+
+<b>ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀꜱ ꜰᴏʀ ᴄᴀᴘᴛɪᴏɴ:</b>
+<code>{{filename}}</code>   — ꜰɪɴᴀʟ ʀᴇɴᴀᴍᴇᴅ ꜰɪʟᴇɴᴀᴍᴇ
+<code>{{filesize}}</code>   — ꜰɪʟᴇ ꜱɪᴢᴇ
+<code>{{audio}}</code>      — Sᴜʙ / Dᴜᴀʟ / Mᴜʟᴛɪ
+<code>{{languages}}</code>  — ᴀᴜᴅɪᴏ ʟᴀɴɢᴜᴀɢᴇꜱ
+<code>{{subtitles}}</code>  — ꜱᴜʙᴛɪᴛʟᴇ ʟᴀɴɢᴜᴀɢᴇꜱ
+<code>{{quality}}</code>    — ᴠɪᴅᴇᴏ ǫᴜᴀʟɪᴛʏ
+<code>{{codec}}</code>      — ᴠɪᴅᴇᴏ ᴄᴏᴅᴇᴄ
+<code>{{episode}}</code>    — ᴇᴘɪꜱᴏᴅᴇ ɴᴜᴍʙᴇʀ
+<code>{{season}}</code>     — ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ
+
+<b>ᴄᴏᴍᴍᴀɴᴅꜱ:</b>
+➲ /set_caption  — ꜱᴇᴛ ᴄᴀᴘᴛɪᴏɴ
+➲ /see_caption  — ᴠɪᴇᴡ ᴄᴀᴘᴛɪᴏɴ
+➲ /del_caption  — ᴅᴇʟᴇᴛᴇ ᴄᴀᴘᴛɪᴏɴ
+
+<b>‣ ᴇxᴀᴍᴘʟᴇ:</b>
+<code>/set_caption 🎬 {{filename}}
+📦 Size: {{filesize}} | 🎵 {{audio}} | 🔤 {{subtitles}}</code>"""
 
     PROGRESS_BAR = """\n
 <b>» Size</b> : {1} | {2}
 <b>» Done</b> : {0}%
 <b>» Speed</b> : {3}/s
 <b>» ETA</b> : {4} """
-    
-    
+
     DONATE_TXT = """<blockquote> ᴛʜᴀɴᴋs ғᴏʀ sʜᴏᴡɪɴɢ ɪɴᴛᴇʀᴇsᴛ ɪɴ ᴅᴏɴᴀᴛɪᴏɴ</blockquote>
 
 <b><i>💞  ɪꜰ ʏᴏᴜ ʟɪᴋᴇ ᴏᴜʀ ʙᴏᴛ ꜰᴇᴇʟ ꜰʀᴇᴇ ᴛᴏ ᴅᴏɴᴀᴛᴇ ᴀɴʏ ᴀᴍᴏᴜɴᴛ ₹𝟷𝟶, ₹𝟸𝟶, ₹𝟻𝟶, ₹𝟷𝟶𝟶, ᴇᴛᴄ.</i></b>
@@ -109,14 +137,14 @@ class Txt(object):
 
 ➲ ғɪʀsᴛ sᴛᴇᴘ : ᴘᴀʏ ᴛʜᴇ ᴀᴍᴏᴜɴᴛ ᴀᴄᴄᴏʀᴅɪɴɢ ᴛᴏ ʏᴏᴜʀ ғᴀᴠᴏʀɪᴛᴇ ᴘʟᴀɴ ᴛᴏ ᴛʜɪs rohit162@fam ᴜᴘɪ ɪᴅ.
 
-➲ secoɴᴅ sᴛᴇᴘ : ᴛᴀᴋᴇ ᴀ sᴄʀᴇᴇɴsʜᴏᴛ ᴏғ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴛ ᴀɴᴅ sʜᴀʀᴇ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ ʜᴇʀᴇ: @sewxiy 
+➲ secoɴᴅ sᴛᴇᴘ : ᴛᴀᴋᴇ ᴀ sᴄʀᴇᴇɴsʜᴏᴛ ᴏғ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴛ ᴀɴᴅ sʜᴀʀᴇ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ ʜᴇʀᴇ: @sewxiy
 
 ➲ ᴀʟᴛᴇʀɴᴀᴛɪᴠᴇ sᴛᴇᴘ : ᴏʀ ᴜᴘʟᴏᴀᴅ ᴛʜᴇ sᴄʀᴇᴇɴsʜᴏᴛ ʜᴇʀᴇ ᴀɴᴅ ʀᴇᴘʟʏ ᴡɪᴛʜ ᴛʜᴇ /bought ᴄᴏᴍᴍᴀɴᴅ.
 
 Yᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴ ᴡɪʟʟ ʙᴇ ᴀᴄᴛɪᴠᴀᴛᴇᴅ ᴀғᴛᴇʀ ᴠᴇʀɪғɪᴄᴀᴛɪᴏɴ</b>"""
 
     PREPLANS_TXT = """<b>👋 bro,
-    
+
 🎖️ <u>ᴀᴠᴀɪʟᴀʙʟᴇ ᴘʟᴀɴs</u> :
 
 Pʀɪᴄɪɴɢ:
@@ -127,24 +155,35 @@ Pʀɪᴄɪɴɢ:
 ➲ ᴜᴘɪ ɪᴅ - <code>LodaLassan@fam</code>
 
 ‼️ᴜᴘʟᴏᴀᴅ ᴛʜᴇ ᴘᴀʏᴍᴇɴᴛ sᴄʀᴇᴇɴsʜᴏᴛ ʜᴇʀᴇ ᴀɴᴅ ʀᴇᴘʟʏ ᴡɪᴛʜ ᴛʜᴇ /bought ᴄᴏᴍᴍᴀɴᴅ.</b>"""
-    
-    HELP_TXT = """<b>ʜᴇʀᴇ ɪꜱ ʜᴇʟᴘ ᴍᴇɴᴜ ɪᴍᴘᴏʀᴛᴀɴᴛ ᴄᴏᴍᴍᴀɴᴅꜱ:
 
-ᴀᴡᴇsᴏᴍᴇ ғᴇᴀᴛᴜʀᴇs🫧
+    HELP_TXT = """<b>» ᴄᴏᴍᴍᴀɴᴅs & ꜰᴇᴀᴛᴜʀᴇꜱ</b>
 
-ʀᴇɴᴀᴍᴇ ʙᴏᴛ ɪꜱ ᴀ ʜᴀɴᴅʏ ᴛᴏᴏʟ ᴛʜᴀᴛ ʜᴇʟᴘꜱ ʏᴏᴜ ʀᴇɴᴀᴍᴇ ᴀɴᴅ ᴍᴀɴᴀɢᴇ ʏᴏᴜʀ ꜰɪʟᴇꜱ ᴇꜰꜰᴏʀᴛʟᴇꜱꜱʟʏ.
+<b>⚙️ ꜱᴇᴛᴜᴘ</b>
+➲ /settings — ᴀʟʟ ʏᴏᴜʀ ꜱᴇᴛᴛɪɴɢꜱ ɪɴ ᴏɴᴇ ᴘʟᴀᴄᴇ
+➲ /autorename — ꜱᴇᴛ ʏᴏᴜʀ ʀᴇɴᴀᴍᴇ ꜰᴏʀᴍᴀᴛ
+➲ /metadata — ᴇᴅɪᴛ ᴍᴋᴠ ᴍᴇᴛᴀᴅᴀᴛᴀ
+➲ /dump — ꜱᴇᴛ ʏᴏᴜʀ ᴅᴜᴍᴘ ᴄʜᴀɴɴᴇʟ
 
-➲ /Autorename: ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ʏᴏᴜʀ ꜰɪʟᴇꜱ.
-➲ /Metadata: ᴄᴏᴍᴍᴀɴᴅꜱ ᴛᴏ ᴛᴜʀɴ ᴏɴ ᴏғғ ᴍᴇᴛᴀᴅᴀᴛᴀ.
-➲ /Help: ɢᴇᴛ ǫᴜɪᴄᴋ ᴀꜱꜱɪꜱᴛᴀɴᴄᴇ.</b>"""
+<b>🖼️ ᴛʜᴜᴍʙɴᴀɪʟ</b>
+➲ /setthumb — ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴘʜᴏᴛᴏ ᴛᴏ ꜱᴇᴛ ᴛʜᴜᴍʙɴᴀɪʟ
+➲ /view_thumb — ᴠɪᴇᴡ ᴛʜᴜᴍʙɴᴀɪʟ
+➲ /del_thumb — ᴅᴇʟᴇᴛᴇ ᴛʜᴜᴍʙɴᴀɪʟ
 
-    SEND_METADATA = """
-<b>--Metadata Settings:--</b>
+<b>💬 ᴄᴀᴘᴛɪᴏɴ</b>
+➲ /set_caption — ꜱᴇᴛ ᴄᴜꜱᴛᴏᴍ ᴄᴀᴘᴛɪᴏɴ
+➲ /see_caption — ᴠɪᴇᴡ ᴄᴀᴘᴛɪᴏɴ
+➲ /del_caption — ᴅᴇʟᴇᴛᴇ ᴄᴀᴘᴛɪᴏɴ
 
-➜ /metadata: Turn on or off metadata.
+<b>📋 ǫᴜᴇᴜᴇ</b>
+➲ /queue — ᴠɪᴇᴡ ᴄᴜʀʀᴇɴᴛ ᴇɴᴛɪʀᴇ ʙᴏᴛ ǫᴜᴇᴜᴇ ꜱᴛᴀᴛᴜꜱ
+➲ /cancel — ᴄᴀɴᴄᴇʟ ʏᴏᴜʀ ᴄᴜʀʀᴇɴᴛ ᴛᴀꜱᴋ
+➲ /cancel all — ᴄᴀɴᴄᴇʟ ᴀʟʟ ʏᴏᴜʀ ᴛᴀꜱᴋꜱ"""
 
-<b>Description</b> : Metadata will change MKV video files including all audio, streams, and subtitle titles."""
+    SEND_METADATA = """<b>🏷️ Metadata Settings</b>
 
+➜ /metadata — ᴏᴘᴇɴ ᴍᴇᴛᴀᴅᴀᴛᴀ ꜱᴇᴛᴛɪɴɢꜱ
+
+<b>ᴅᴇꜱᴄʀɪᴘᴛɪᴏɴ:</b> ᴍᴇᴛᴀᴅᴀᴛᴀ ᴡɪʟʟ ᴇᴍʙᴇᴅ ᴄᴜꜱᴛᴏᴍ ᴛɪᴛʟᴇ, ᴀᴜᴛʜᴏʀ, ᴀʀᴛɪꜱᴛ, ᴀᴜᴅɪᴏ, ꜱᴜʙᴛɪᴛʟᴇ ᴀɴᴅ ᴠɪᴅᴇᴏ ᴛʀᴀᴄᴋ ɴᴀᴍᴇꜱ ɪɴᴛᴏ ʏᴏᴜʀ ᴍᴋᴠ ꜰɪʟᴇꜱ."""
 
     SOURCE_TXT = """
 <b>ʜᴇʏ,
@@ -153,7 +192,6 @@ Pʀɪᴄɪɴɢ:
 
 ᴡʀɪᴛᴛᴇɴ ɪɴ ᴩʏᴛʜᴏɴ ᴡɪᴛʜ ᴛʜᴇ ʜᴇʟᴩ ᴏғ :
 [ᴩʏʀᴏɢʀᴀᴍ](https://github.com/pyrogram/pyrogram)
-[ᴩʏᴛʜᴏɴ-ᴛᴇʟᴇɢʀᴀᴍ-ʙᴏᴛ](https://github.com/python-telegram-bot/python-telegram-bot)
 ᴀɴᴅ ᴜsɪɴɢ [ᴍᴏɴɢᴏ](https://cloud.mongodb.com) ᴀs ᴅᴀᴛᴀʙᴀsᴇ.
 
 
@@ -161,33 +199,19 @@ Pʀɪᴄɪɴɢ:
 
 
 ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ʙᴏᴛ ɪs ʟɪᴄᴇɴsᴇᴅ ᴜɴᴅᴇʀ ᴛʜᴇ [ᴍɪᴛ ʟɪᴄᴇɴsᴇ](https://github.com/codeflix_bots/autorenamebot/blob/main/LICENSE).
-© 2024 | [sᴜᴘᴘᴏʀᴛ ᴄʜᴀᴛ](https://t.me/codeflixsupport), ᴀʟʟ ʀɪɢʜᴛs ʀᴇsᴇʀᴠᴇᴅ."""
+© 2025 | [sᴜᴘᴘᴏʀᴛ ᴄʜᴀᴛ](https://t.me/codeflixsupport), ᴀʟʟ ʀɪɢʜᴛs ʀᴇsᴇʀᴠᴇᴅ."""
 
     META_TXT = """
-**ᴍᴀɴᴀɢɪɴɢ ᴍᴇᴛᴀᴅᴀᴛᴀ ғᴏʀ ʏᴏᴜʀ ᴠɪᴅᴇᴏs ᴀɴᴅ ғɪʟᴇs**
+**🏷️ Metadata Manager**
 
-**ᴠᴀʀɪᴏᴜꜱ ᴍᴇᴛᴀᴅᴀᴛᴀ:**
+**ꜰɪᴇʟᴅꜱ ʏᴏᴜ ᴄᴀɴ ꜱᴇᴛ:**
 
-- **ᴛɪᴛʟᴇ**: Descriptive title of the media.
-- **ᴀᴜᴛʜᴏʀ**: The creator or owner of the media.
-- **ᴀʀᴛɪꜱᴛ**: The artist associated with the media.
-- **ᴀᴜᴅɪᴏ**: Title or description of audio content.
-- **ꜱᴜʙᴛɪᴛʟᴇ**: Title of subtitle content.
-- **ᴠɪᴅᴇᴏ**: Title or description of video content.
+- **ᴛɪᴛʟᴇ** — ᴍᴇᴅɪᴀ ᴛɪᴛʟᴇ
+- **ᴀᴜᴛʜᴏʀ** — ᴄʀᴇᴀᴛᴏʀ / ᴏᴡɴᴇʀ
+- **ᴀʀᴛɪꜱᴛ** — ᴀꜱꜱᴏᴄɪᴀᴛᴇᴅ ᴀʀᴛɪꜱᴛ
+- **ᴀᴜᴅɪᴏ** — ᴀᴜᴅɪᴏ ᴛʀᴀᴄᴋ ɴᴀᴍᴇ
+- **ꜱᴜʙᴛɪᴛʟᴇ** — ꜱᴜʙᴛɪᴛʟᴇ ᴛʀᴀᴄᴋ ɴᴀᴍᴇ
+- **ᴠɪᴅᴇᴏ** — ᴠɪᴅᴇᴏ ᴛʀᴀᴄᴋ ɴᴀᴍᴇ
 
-**ᴄᴏᴍᴍᴀɴᴅꜱ ᴛᴏ ᴛᴜʀɴ ᴏɴ ᴏғғ ᴍᴇᴛᴀᴅᴀᴛᴀ:**
-➜ /metadata: Turn on or off metadata.
-
-**ᴄᴏᴍᴍᴀɴᴅꜱ ᴛᴏ ꜱᴇᴛ ᴍᴇᴛᴀᴅᴀᴛᴀ:**
-
-➜ /settitle: Set a custom title of media.
-➜ /setauthor: Set the author.
-➜ /setartist: Set the artist.
-➜ /setaudio: Set audio title.
-➜ /setsubtitle: Set subtitle title.
-➜ /setvideo: Set video title.
-
-**ᴇxᴀᴍᴘʟᴇ:** /settitle Your Title Here
-
-**ᴜꜱᴇ ᴛʜᴇꜱᴇ ᴄᴏᴍᴍᴀɴᴅꜱ ᴛᴏ ᴇɴʀɪᴄʜ ʏᴏᴜʀ ᴍᴇᴅɪᴀ ᴡɪᴛʜ ᴀᴅᴅɪᴛɪᴏɴᴀʟ ᴍᴇᴛᴀᴅᴀᴛᴀ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ!**
+ᴜꜱᴇ /metadata ᴛᴏ ᴏᴘᴇɴ ᴛʜᴇ ᴍᴇᴛᴀᴅᴀᴛᴀ ᴍᴀɴᴀɢᴇʀ.
 """
