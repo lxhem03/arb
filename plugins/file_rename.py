@@ -21,7 +21,7 @@ renaming_operations = {}
 user_queues: dict   = {}
 
 # ══════════════════════════ SEASON / EPISODE PATTERNS ════════════════════════
-SEASON_EPISODE_PATTERNS += [
+SEASON_EPISODE_PATTERNS = [
 
     # S01.E02 / S01-E02
     (re.compile(r'[Ss](\d{1,2})[.\- _]+[Ee](\d{1,3})'),
