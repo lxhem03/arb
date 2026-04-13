@@ -56,13 +56,12 @@ SEASON_EPISODE_PATTERNS = [
      ('episode',)),
 
     # Episode at the beginning (e.g., 001_, 003 -, 12.)
-    (re.compile(r'^(?:\D*?)(\d{1,3})(?=[._\-\s])'),
+    (re.compile(r'^(\d{2,3})(?=[._\-\s])'),
      ('episode',)),
 
     # Absolute episode (anime style like 203)
-    (re.compile(r'\b(?:EP?|Episode)?[._\s]?(\d{2,4})\b'),
+    (re.compile(r'(?<![A-Za-z])(\d{2,4})(?![A-Za-z])'),
      ('episode',)),
-
 ]
 WORD_TO_SEASON = {k.lower(): v for k, v in {
     "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5,
