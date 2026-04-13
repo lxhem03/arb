@@ -48,7 +48,7 @@ SEASON_EPISODE_PATTERNS = [
      ('episode',)),
     
     # Only E1157, E 1156, E_1782
-    (re.compile(r'[Ee][\s._-]?(\d{1,4})'),
+    (re.compile(r'[E][\s._-]?(\d{1,4})'),
      ('episode',)),
 
     # Episode 12 (no season)
