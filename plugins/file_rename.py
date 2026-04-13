@@ -39,12 +39,24 @@ SEASON_EPISODE_PATTERNS += [
     (re.compile(r'Season[._\-\s]*(\d{1,2})[._\-\s]*Ep(?:isode)?[._\-\s]*(\d{1,3})', re.IGNORECASE),
      ('season', 'episode')),
 
+    # One Punch man 3 - 12 
+    (re.compile(r'[\s._-](\d{1,2})[\s._-]+(\d{1,3})(?=\.[^.]+$)'),
+     ('season', 'episode')),
+
     # Ep only (fallback, no season)
     (re.compile(r'[Ee]p?(?:isode)?[._\s]?(\d{1,3})'),
+     ('episode',)),
+    
+    # Only E1157, E 1156, E_1782
+    (re.compile(r'[Ee][\s._-]?(\d{1,4})'),
      ('episode',)),
 
     # Episode 12 (no season)
     (re.compile(r'Episode[._\s]+(\d{1,3})', re.IGNORECASE),
+     ('episode',)),
+
+    # Episode at the beginning (e.g., 001_, 003 -, 12.)
+    (re.compile(r'^(?:\D*?)(\d{1,3})(?=[._\-\s])'),
      ('episode',)),
 
     # Absolute episode (anime style like 203)
