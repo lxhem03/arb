@@ -39,6 +39,10 @@ SEASON_EPISODE_PATTERNS = [
     (re.compile(r'Season[._\-\s]*(\d{1,2})[._\-\s]*Ep(?:isode)?[._\-\s]*(\d{1,3})', re.IGNORECASE),
      ('season', 'episode')),
 
+    # New pattern for: S02 - 05, S01 - 12, Demon Slayer S02 - 05 style
+    (re.compile(r'[Ss](\d{1,2})[\s._-]*[-–—]?[\s._]*(\d{1,3})', re.IGNORECASE),
+     ('season', 'episode')),
+
     # One Punch man 3 - 12 
     (re.compile(r'[\s._-](\d{1,2})[\s._-]+(\d{1,3})(?=\.[^.]+$)'),
      ('season', 'episode')),
