@@ -23,8 +23,8 @@ user_queues: dict   = {}
 # ══════════════════════════ SEASON / EPISODE PATTERNS ════════════════════════
 SEASON_EPISODE_PATTERNS = [
 
-    # S01.E02 / S01-E02
-    (re.compile(r'[Ss](\d{1,2})[.\- _]+[Ee](\d{1,3})'),
+    # S01.E02 / S01-E02 / S01E11 (fixed)
+    (re.compile(r'[Ss](\d{1,2})[.\- _]*[Ee](\d{1,3})'),
      ('season', 'episode')),
 
     # Season 1 Episode 2 (full words)
