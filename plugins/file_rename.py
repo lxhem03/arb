@@ -47,6 +47,10 @@ SEASON_EPISODE_PATTERNS = [
     (re.compile(r'[\s._-](\d{1,2})[\s._-]+(\d{1,3})(?=\.[^.]+$)'),
      ('season', 'episode')),
 
+    # Title - 12 (Dual-1080p...) style   ← ADD THIS
+    (re.compile(r'[\s-]+\b(\d{1,3})\b\s*(?=\()', re.IGNORECASE),
+     ('episode',)),
+
     # Ep123, Episode 123, ep.123  (require "Ep" or "Episode", not just "e")
     (re.compile(r'(?i)\b(?:ep|episode)[._\s-]*(\d{1,4})\b'),
      ('episode',)),
