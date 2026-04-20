@@ -21,8 +21,8 @@ async def add_caption(client, message):
 
 <b>‣ ᴇxᴀᴍᴘʟᴇ:</b>
 <code>/set_caption 🎬 {filename}
-📦 Size: {filesize} | 🎵 {audio} | 🔤 {subtitles}</code>
-"""
+📦 Size: {filesize} | 🎵 {audio} | 🔤 {subtitles}</code>""",
+            parse_mode="html"
         )
     caption = message.text.split(" ", 1)[1]
     await codeflixbots.set_caption(message.from_user.id, caption=caption)
