@@ -7,8 +7,22 @@ from helper.database import codeflixbots
 async def add_caption(client, message):
     if len(message.command) == 1:
         return await message.reply_text(
-            "**Give The Caption\n\nExample :-** "
-            "`/set_caption 📕Name ➠ {filename}\n\n🔗 Size ➠ {filesize}`"
+            """
+            <b>ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀꜱ ꜰᴏʀ ᴄᴀᴘᴛɪᴏɴ:</b>
+<code>{filename}</code>   — ꜰɪɴᴀʟ ʀᴇɴᴀᴍᴇᴅ ꜰɪʟᴇɴᴀᴍᴇ
+<code>{filesize}</code>   — ꜰɪʟᴇ ꜱɪᴢᴇ
+<code>{audio}</code>      — Sᴜʙ / Dᴜᴀʟ / Mᴜʟᴛɪ
+<code>{languages}</code>  — ᴀᴜᴅɪᴏ ʟᴀɴɢᴜᴀɢᴇꜱ
+<code>{subtitles}</code>  — ꜱᴜʙᴛɪᴛʟᴇ ʟᴀɴɢᴜᴀɢᴇꜱ
+<code>{quality}</code>    — ᴠɪᴅᴇᴏ ǫᴜᴀʟɪᴛʏ
+<code>{codec}</code>      — ᴠɪᴅᴇᴏ ᴄᴏᴅᴇᴄ
+<code>{episode}</code>    — ᴇᴘɪꜱᴏᴅᴇ ɴᴜᴍʙᴇʀ
+<code>{season}</code>     — ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ
+
+<b>‣ ᴇxᴀᴍᴘʟᴇ:</b>
+<code>/set_caption 🎬 {filename}
+📦 Size: {filesize} | 🎵 {audio} | 🔤 {subtitles}</code>
+"""
         )
     caption = message.text.split(" ", 1)[1]
     await codeflixbots.set_caption(message.from_user.id, caption=caption)
