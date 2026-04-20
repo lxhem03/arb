@@ -13,27 +13,26 @@ async def start(client, message: Message):
     user = message.from_user
     await codeflixbots.add_user(client, message)
 
-    m = await message.reply_text("ʜᴇʜᴇ..ɪ'ᴍ ᴀɴʏᴀ!\nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
+    m = await message.reply_text("👀")
     await asyncio.sleep(0.4)
     await m.edit_text("🎊")
     await asyncio.sleep(0.5)
     await m.edit_text("⚡")
     await asyncio.sleep(0.5)
-    await m.edit_text("ᴡᴀᴋᴜ ᴡᴀᴋᴜ!...")
+    await m.edit_text("Hola!...")
     await asyncio.sleep(0.4)
     await m.delete()
 
-    await message.reply_sticker("CAACAgUAAxkBAAECroBmQKMAAQ-Gw4nibWoj_pJou2vP1a4AAlQIAAIzDxlVkNBkTEb1Lc4eBA")
+    s = await message.reply_sticker("CAACAgIAAxkBAALAlWnlvhggEAv5oNGqVWRH7mwRfixbAAIDRwACt6TpSKLqrZMGoYzqOwQ")
 
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("• ᴍʏ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs •", callback_data='help')],
         [
-            InlineKeyboardButton('• ᴜᴘᴅᴀᴛᴇs', url='https://t.me/Codeflix_Bots'),
-            InlineKeyboardButton('sᴜᴘᴘᴏʀᴛ •',  url='https://t.me/CodeflixSupport')
+            InlineKeyboardButton('• ᴜᴘᴅᴀᴛᴇs', url='https://t.me/The_TGguy'),
+            InlineKeyboardButton('sᴜᴘᴘᴏʀᴛ •',  url='https://t.me/TGXNectar')
         ],
         [
-            InlineKeyboardButton('• ᴀʙᴏᴜᴛ',  callback_data='about'),
-            InlineKeyboardButton('sᴏᴜʀᴄᴇ •', callback_data='source')
+            InlineKeyboardButton('• ᴀʙᴏᴜᴛ',  callback_data='about')
         ],
     ])
 
@@ -49,6 +48,7 @@ async def start(client, message: Message):
             reply_markup=buttons,
             disable_web_page_preview=True
         )
+    await s.delete()
 
 
 # ══════════════════════════ /help ════════════════════════════════════════════
@@ -65,90 +65,12 @@ async def help_command(client, message: Message):
                 InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ •',    callback_data='caption')
             ],
             [
-                InlineKeyboardButton('• ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'),
-                InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ •',   callback_data='donate')
+                InlineKeyboardButton('• ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta')
             ],
             [InlineKeyboardButton('• ʜᴏᴍᴇ', callback_data='home')],
         ])
     )
 
-
-# ══════════════════════════ /donate ══════════════════════════════════════════
-@Client.on_message(filters.command("donate"))
-async def donation(client, message):
-    buttons = InlineKeyboardMarkup([[
-        InlineKeyboardButton(text="ʙᴀᴄᴋ", callback_data="help"),
-        InlineKeyboardButton(text="ᴏᴡɴᴇʀ", url='https://t.me/sewxiy')
-    ]])
-    yt = await message.reply_photo(
-        photo='https://graph.org/file/1919fe077848bd0783d4c.jpg',
-        caption=Txt.DONATE_TXT,
-        reply_markup=buttons
-    )
-    await asyncio.sleep(300)
-    await yt.delete()
-    await message.delete()
-
-
-# ══════════════════════════ /premium ════════════════════════════════════════
-@Client.on_message(filters.command("premium"))
-async def getpremium(bot, message):
-    buttons = InlineKeyboardMarkup([[
-        InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/sewxiy"),
-        InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")
-    ]])
-    yt = await message.reply_photo(
-        photo='https://graph.org/file/feebef43bbdf76e796b1b.jpg',
-        caption=Txt.PREMIUM_TXT,
-        reply_markup=buttons
-    )
-    await asyncio.sleep(300)
-    await yt.delete()
-    await message.delete()
-
-
-# ══════════════════════════ /plan ════════════════════════════════════════════
-@Client.on_message(filters.command("plan"))
-async def premium(bot, message):
-    buttons = InlineKeyboardMarkup([[
-        InlineKeyboardButton("sᴇɴᴅ ss", url="https://t.me/sewxiy"),
-        InlineKeyboardButton("ᴄʟᴏsᴇ",   callback_data="close")
-    ]])
-    yt = await message.reply_photo(
-        photo='https://graph.org/file/8b50e21db819f296661b7.jpg',
-        caption=Txt.PREPLANS_TXT,
-        reply_markup=buttons
-    )
-    await asyncio.sleep(300)
-    await yt.delete()
-    await message.delete()
-
-
-# ══════════════════════════ /bought ══════════════════════════════════════════
-@Client.on_message(filters.command("bought") & filters.private)
-async def bought(client, message):
-    msg = await message.reply('Wait im checking...')
-    replied = message.reply_to_message
-    if not replied:
-        await msg.edit(
-            "<b>Please reply with the screenshot of your payment.\n\n"
-            "Upload your screenshot first, then reply to it with /bought</b>"
-        )
-    elif replied.photo:
-        await client.send_photo(
-            chat_id=LOG_CHANNEL,
-            photo=replied.photo.file_id,
-            caption=(
-                f'<b>User - {message.from_user.mention}\n'
-                f'User id - <code>{message.from_user.id}</code>\n'
-                f'Username - <code>{message.from_user.username}</code>\n'
-                f'Name - <code>{message.from_user.first_name}</code></b>'
-            ),
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("Close", callback_data="close_data")
-            ]])
-        )
-        await msg.edit_text('<b>Your screenshot has been sent to Admins</b>')
 
 
 # ══════════════════════════ CALLBACKS (only this plugin's own data) ══════════
