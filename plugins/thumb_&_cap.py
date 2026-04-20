@@ -1,7 +1,7 @@
 # thumb_&_cap.py — caption commands + thumbnail view/delete
 from pyrogram import Client, filters
 from helper.database import codeflixbots
-
+from pyrogram.enums import ParseMode
 
 @Client.on_message(filters.private & filters.command('set_caption'))
 async def add_caption(client, message):
@@ -22,7 +22,7 @@ async def add_caption(client, message):
 <b>‣ ᴇxᴀᴍᴘʟᴇ:</b>
 <code>/set_caption 🎬 {filename}
 📦 Size: {filesize} | 🎵 {audio} | 🔤 {subtitles}</code>""",
-            parse_mode="html"
+            parse_mode=ParseMode.HTML
         )
     caption = message.text.split(" ", 1)[1]
     await codeflixbots.set_caption(message.from_user.id, caption=caption)
