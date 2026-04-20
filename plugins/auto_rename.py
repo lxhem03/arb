@@ -1,6 +1,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from helper.database import codeflixbots
+from pyrogram.enums import ParseMode
 
 @Client.on_message(filters.private & filters.command("autorename"))
 async def auto_rename_command(client, message):
@@ -24,8 +25,8 @@ async def auto_rename_command(client, message):
 <b>‣ ᴇxᴀᴍᴘʟᴇ:</b>
 <code>/autorename Anime Name S{season}E{episode} [{quality} {audio} {codec}]</code>
 
-<b>‣ ᴏᴜᴛᴘᴜᴛ:</b> <code>Anime Name S01E04 [1080p Dual H.265].mkv</code>
-"""
+<b>‣ ᴏᴜᴛᴘᴜᴛ:</b> <code>Anime Name S01E04 [1080p Dual H.265].mkv</code>""",
+            parse_mode=ParseMode.HTML
         )
         return
 
