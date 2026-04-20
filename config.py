@@ -50,32 +50,25 @@ class Txt(object):
 
 <b>ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀꜱ ʏᴏᴜ ᴄᴀɴ ᴜꜱᴇ:</b>
 
-<code>{{episode}}</code>  — ᴇᴘɪꜱᴏᴅᴇ ɴᴜᴍʙᴇʀ
-<code>{{season}}</code>   — ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ
-<code>{{quality}}</code>  — ᴠɪᴅᴇᴏ ǫᴜᴀʟɪᴛʏ ꜰʀᴏᴍ ꜱᴛʀᴇᴀᴍ (ᴇɢ. 1080ᴘ)
-<code>{{resolution}}</code> — ǫᴜᴀʟɪᴛʏ ꜰʀᴏᴍ ꜰɪʟᴇɴᴀᴍᴇ
-<code>{{audio}}</code>    — Sᴜʙ / Dᴜᴀʟ / Mᴜʟᴛɪ
-<code>{{languages}}</code> — ᴀᴜᴅɪᴏ ʟᴀɴɢᴜᴀɢᴇs (ᴇɢ. Eɴɢʟɪꜱʜ, Jᴀᴘᴀɴᴇꜱᴇ)
-<code>{{subtitles}}</code> — ꜱᴜʙᴛɪᴛʟᴇ ʟᴀɴɢᴜᴀɢᴇs
-<code>{{codec}}</code>    — ᴠɪᴅᴇᴏ ᴄᴏᴅᴇᴄ (ᴇɢ. H.265, AV1)
-<code>{{filesize}}</code> — ꜰɪʟᴇ ꜱɪᴢᴇ (ᴇɢ. 2.4 Gʙ)
+<code>{episode}</code>  — ᴇᴘɪꜱᴏᴅᴇ ɴᴜᴍʙᴇʀ
+<code>{season}</code>   — ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ
+<code>{quality}</code>  — ᴠɪᴅᴇᴏ ǫᴜᴀʟɪᴛʏ ꜰʀᴏᴍ ꜱᴛʀᴇᴀᴍ (ᴇɢ. 1080ᴘ)
+<code>{resolution}</code> — ǫᴜᴀʟɪᴛʏ ꜰʀᴏᴍ ꜰɪʟᴇɴᴀᴍᴇ
+<code>{audio}</code>    — Sᴜʙ / Dᴜᴀʟ / Mᴜʟᴛɪ
+<code>{languages}</code> — ᴀᴜᴅɪᴏ ʟᴀɴɢᴜᴀɢᴇs (ᴇɢ. Eɴɢʟɪꜱʜ, Jᴀᴘᴀɴᴇꜱᴇ)
+<code>{subtitles}</code> — ꜱᴜʙᴛɪᴛʟᴇ ʟᴀɴɢᴜᴀɢᴇs
+<code>{codec}</code>    — ᴠɪᴅᴇᴏ ᴄᴏᴅᴇᴄ (ᴇɢ. H.265, AV1)
+<code>{filesize}</code> — ꜰɪʟᴇ ꜱɪᴢᴇ (ᴇɢ. 2.4 Gʙ)
 
 <b>‣ ᴇxᴀᴍᴘʟᴇ:</b>
-<code>/autorename Anime Name S{{season}}E{{episode}} [{{quality}} {{audio}} {{codec}}]</code>
+<code>/autorename Anime Name S{season}E{episode} [{quality} {audio} {codec}]</code>
 
 <b>‣ ᴏᴜᴛᴘᴜᴛ:</b> <code>Anime Name S01E04 [1080p Dual H.265].mkv</code>
 
 <i>ᴛɪᴘ: ᴜꜱᴇ /settings ᴛᴏ ᴄᴏɴᴛʀᴏʟ ᴡʜᴇᴛʜᴇʀ ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀs ᴀʀᴇ ʀᴇᴀᴅ ꜰʀᴏᴍ ꜰɪʟᴇɴᴀᴍᴇ, ᴄᴀᴘᴛɪᴏɴ, ᴏʀ ʙᴏᴛʜ.</i>"""
 
-    ABOUT_TXT = f"""<b>❍ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/codeflix_bots">ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ</a>
-❍ ᴅᴇᴠᴇʟᴏᴩᴇʀ : <a href="https://t.me/cosmic_freak">ʏᴀᴛᴏ</a>
-❍ ɢɪᴛʜᴜʙ : <a href="https://github.com/cosmic_freak">ʏᴀᴛᴏ</a>
-❍ ʟᴀɴɢᴜᴀɢᴇ : <a href="https://www.python.org/">ᴘʏᴛʜᴏɴ</a>
-❍ ᴅᴀᴛᴀʙᴀꜱᴇ : <a href="https://www.mongodb.com/">ᴍᴏɴɢᴏ ᴅʙ</a>
-❍ ʜᴏꜱᴛᴇᴅ ᴏɴ : <a href="https://t.me/codeflix_bots">ʜᴇʀᴏᴋᴜ</a>
-❍ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟ : <a href="https://t.me/animes_cruise">ᴀɴɪᴍᴇ ᴄʀᴜɪsᴇ</a>
-
-➻ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ꜰᴏʀ ʜᴇʟᴘ ᴀɴᴅ ɪɴꜰᴏ ᴀʙᴏᴜᴛ ᴍᴇ.</b>"""
+    ABOUT_TXT = f"""<blockquote>‣ 𝑨𝒇𝒇𝒊𝒍𝒊𝒂𝒕𝒊𝒐𝒏: <a href="https://t.me/TgXNectar/57">𝙲𝚑𝚎𝚌𝚔 𝚑𝚎𝚛𝚎</a>\n\n‣ 𝑻𝒉𝒆 𝑴𝒂𝒔𝒕𝒆𝒓𝒎𝒊𝒏𝒅: <a href="https://t.me/lxhem03">𝙽𝚎𝚌𝚝𝚊𝚛...</a>\n\n‣ 𝑨𝒓𝒄𝒉𝒊𝒗𝒆 𝑺𝒚𝒔𝒕𝒆𝒎: <a href="https://www.mongodb.com/">𝙼𝚘𝚗𝚐𝚘 𝙳𝙱</a>\n\n‣ 𝑳𝒐𝒈𝒊𝒄 𝑳𝒂𝒏𝒈𝒖𝒂𝒈𝒆: <a href="https://www.python.org/">𝙿𝚢𝚝𝚑𝚘𝚗</a>\n\n‣ 𝑶𝒑𝒆𝒓𝒂𝒕𝒊𝒐𝒏𝒂𝒍 𝑩𝒂𝒔𝒆: <a href="https://www.heroku.com/">𝙷𝚎𝚛𝚘𝚔𝚞</a>
+</blockquote>"""
 
     THUMBNAIL_TXT = """<b><u>» ᴛʜᴜᴍʙɴᴀɪʟ ꜱᴇᴛᴛɪɴɢꜱ</u></b>
 
@@ -91,15 +84,15 @@ class Txt(object):
     CAPTION_TXT = """<b><u>» ᴄᴜꜱᴛᴏᴍ ᴄᴀᴘᴛɪᴏɴ</u></b>
 
 <b>ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀꜱ ꜰᴏʀ ᴄᴀᴘᴛɪᴏɴ:</b>
-<code>{{filename}}</code>   — ꜰɪɴᴀʟ ʀᴇɴᴀᴍᴇᴅ ꜰɪʟᴇɴᴀᴍᴇ
-<code>{{filesize}}</code>   — ꜰɪʟᴇ ꜱɪᴢᴇ
-<code>{{audio}}</code>      — Sᴜʙ / Dᴜᴀʟ / Mᴜʟᴛɪ
-<code>{{languages}}</code>  — ᴀᴜᴅɪᴏ ʟᴀɴɢᴜᴀɢᴇꜱ
-<code>{{subtitles}}</code>  — ꜱᴜʙᴛɪᴛʟᴇ ʟᴀɴɢᴜᴀɢᴇꜱ
-<code>{{quality}}</code>    — ᴠɪᴅᴇᴏ ǫᴜᴀʟɪᴛʏ
-<code>{{codec}}</code>      — ᴠɪᴅᴇᴏ ᴄᴏᴅᴇᴄ
-<code>{{episode}}</code>    — ᴇᴘɪꜱᴏᴅᴇ ɴᴜᴍʙᴇʀ
-<code>{{season}}</code>     — ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ
+<code>{filename}</code>   — ꜰɪɴᴀʟ ʀᴇɴᴀᴍᴇᴅ ꜰɪʟᴇɴᴀᴍᴇ
+<code>{filesize}</code>   — ꜰɪʟᴇ ꜱɪᴢᴇ
+<code>{audio}</code>      — Sᴜʙ / Dᴜᴀʟ / Mᴜʟᴛɪ
+<code>{languages}</code>  — ᴀᴜᴅɪᴏ ʟᴀɴɢᴜᴀɢᴇꜱ
+<code>{subtitles}</code>  — ꜱᴜʙᴛɪᴛʟᴇ ʟᴀɴɢᴜᴀɢᴇꜱ
+<code>{quality}</code>    — ᴠɪᴅᴇᴏ ǫᴜᴀʟɪᴛʏ
+<code>{codec}</code>      — ᴠɪᴅᴇᴏ ᴄᴏᴅᴇᴄ
+<code>{episode}</code>    — ᴇᴘɪꜱᴏᴅᴇ ɴᴜᴍʙᴇʀ
+<code>{season}</code>     — ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ
 
 <b>ᴄᴏᴍᴍᴀɴᴅꜱ:</b>
 ➲ /set_caption  — ꜱᴇᴛ ᴄᴀᴘᴛɪᴏɴ
@@ -107,8 +100,8 @@ class Txt(object):
 ➲ /del_caption  — ᴅᴇʟᴇᴛᴇ ᴄᴀᴘᴛɪᴏɴ
 
 <b>‣ ᴇxᴀᴍᴘʟᴇ:</b>
-<code>/set_caption 🎬 {{filename}}
-📦 Size: {{filesize}} | 🎵 {{audio}} | 🔤 {{subtitles}}</code>"""
+<code>/set_caption 🎬 {filename}
+📦 Size: {filesize} | 🎵 {audio} | 🔤 {subtitles}</code>"""
 
     PROGRESS_BAR = """\n
 <b>» Size</b> : {1} | {2}
