@@ -59,6 +59,10 @@ SEASON_EPISODE_PATTERNS = [
     (re.compile(r'(?i)\b[Ee][._\s-]?(\d{1,4})\b'),
      ('episode',)),
 
+    # Season as ordinal (2nd, 3rd) followed by episode number: 2nd_Season_03, 3rd_Season_02
+    (re.compile(r'(\d+)(?:st|nd|rd|th)[._\s]*Season[._\s]*(\d{1,3})', re.IGNORECASE),
+     ('season', 'episode')),
+
     # Episode at the very beginning: 003_ or 12. or 001 -
     (re.compile(r'^(\d{2,4})(?=[._\-\s])'),
      ('episode',)),
