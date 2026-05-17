@@ -51,7 +51,7 @@ jobs:
           heroku_app_name:  ${{ inputs.HEROKU_APP_NAME }}
           heroku_email:     ${{ inputs.HEROKU_EMAIL }}
           usedocker:        true
-          docker_heroku_process_type: web
+          docker_heroku_process_type: worker
           stack:            container
           region:           eu
           dontautocreate:   true
