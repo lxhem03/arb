@@ -243,6 +243,61 @@ def extract_season_episode(text: str):
     return season, episode
 
 
+# ══════════════════════════ EPISODE MAP ═══════════════════════════════════════
+
+def apply_episode_map(episode: int, map_str: str):
+    """
+    Remap an absolute episode number using a stored map string.
+
+    map_str format: "START:SEASON:EP_START ..."  (space-separated triplets,
+    must be in ascending order of START).
+
+    Examples
+    --------
+    "25:2:1"          → E1–E24 unchanged, E25+ → S02E01+
+    "1:1:1 25:2:1"   → E1–E24 → S01E01+,  E25+ → S02E01+
+    "1:1:1 25:2:1 49:3:1" → three seasons
+
+    Returns (season, episode) — both ints.
+    Season is None if the episode falls below every range start AND the first
+    range doesn't start at 1 (so the caller can decide what season to use).
+    """
+    if not map_str:
+        return None, episode
+
+    triplets = []
+    for t in map_str.strip().split():
+        parts = t.split(':')
+        if len(parts) != 3:
+            continue
+        try:
+            triplets.append((int(parts[0]), int(parts[1]), int(parts[2])))
+        except ValueError:
+            continue
+
+    if not triplets:
+        return None, episode
+
+    # Sort ascending by start episode (should already be, but be safe)
+    triplets.sort(key=lambda x: x[0])
+
+    # Walk through ranges from last to first and pick the one whose
+    # start_ep <= episode
+    matched = None
+    for start_ep, target_season, target_ep_start in reversed(triplets):
+        if episode >= start_ep:
+            matched = (start_ep, target_season, target_ep_start)
+            break
+
+    if matched is None:
+        # Episode is below every range start — return unchanged
+        return None, episode
+
+    start_ep, target_season, target_ep_start = matched
+    new_episode = target_ep_start + (episode - start_ep)
+    return target_season, new_episode
+
+
 # ══════════════════════════ STREAM ANALYSIS ═══════════════════════════════════
 async def cmd_exec(cmd: list):
     proc = await asyncio.create_subprocess_exec(
@@ -393,24 +448,37 @@ def apply_placeholders(template: str, season, episode, streams: dict,
 async def get_season_episode_for_user(user_id: int, filename: str,
                                        caption: str | None):
     """
-    Apply the user's rename_mode setting:
-      filename → extract from filename only
-      caption  → extract from caption only
-      both     → filename first, fall back to caption for missing values
+    1. Extract raw season/episode using the user's rename_mode setting:
+         filename → extract from filename only
+         caption  → extract from caption only
+         both     → filename first, fall back to caption for missing values
+    2. If the user has an episode map set, remap the extracted episode number
+       to the correct season and episode (e.g. E25 → S02E01).
+       The map takes priority over any season extracted from the filename.
     """
     mode = await codeflixbots.get_rename_mode(user_id)
 
     if mode == 'filename':
-        return extract_season_episode(filename)
+        season, episode = extract_season_episode(filename)
+    elif mode == 'caption':
+        season, episode = extract_season_episode(caption or '')
+    else:
+        # mode == 'both'
+        s_fn, e_fn   = extract_season_episode(filename)
+        s_cap, e_cap = extract_season_episode(caption or '')
+        season  = s_fn  if s_fn  is not None else s_cap
+        episode = e_fn  if e_fn  is not None else e_cap
 
-    if mode == 'caption':
-        return extract_season_episode(caption or '')
+    # ── Episode-map remapping ─────────────────────────────────────────────
+    # If the user set a --map, override season/episode with the mapped values.
+    # We only remap when we actually extracted an episode number.
+    map_str = await codeflixbots.get_episode_map(user_id)
+    if map_str and episode is not None:
+        mapped_season, mapped_episode = apply_episode_map(episode, map_str)
+        if mapped_season is not None:
+            season = mapped_season   # map wins over filename-extracted season
+        episode = mapped_episode
 
-    # mode == 'both'
-    s_fn, e_fn  = extract_season_episode(filename)
-    s_cap, e_cap = extract_season_episode(caption or '')
-    season  = s_fn  if s_fn  is not None else s_cap
-    episode = e_fn  if e_fn  is not None else e_cap
     return season, episode
 
 
