@@ -169,6 +169,29 @@ class Database:
             logging.error(f"Error getting rename mode for user {user_id}: {e}")
             return "filename"
 
+    # ── episode map (absolute → season/episode) ───────────────────────────
+    async def set_episode_map(self, user_id, map_str: str | None):
+        """
+        Store the raw episode-map string, e.g. "25:2:1 49:3:1".
+        Pass None to clear the mapping.
+        """
+        try:
+            await self.col.update_one(
+                {"_id": int(user_id)},
+                {"$set": {"episode_map": map_str}}
+            )
+        except Exception as e:
+            logging.error(f"Error setting episode map for user {user_id}: {e}")
+
+    async def get_episode_map(self, user_id) -> str | None:
+        """Returns the stored episode-map string, or None if not set."""
+        try:
+            user = await self.col.find_one({"_id": int(user_id)})
+            return user.get("episode_map") if user else None
+        except Exception as e:
+            logging.error(f"Error getting episode map for user {user_id}: {e}")
+            return None
+
     # ── metadata ──────────────────────────────────────────────────────────
     async def get_metadata(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
