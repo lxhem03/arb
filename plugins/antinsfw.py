@@ -1,6 +1,6 @@
 nsfw_keywords = {
     "general": [
-        "rape", "cp"
+        "rape", "r@pe"
     ],
     "hentai": [
         "hentai"
